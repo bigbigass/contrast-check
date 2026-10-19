@@ -17,17 +17,29 @@ Free, browser-only **color contrast checker** for WCAG 2.x AA/AAA (and UI/graphi
 ## Layout
 
 ```
-app/layout.tsx                    # metadata, OG/Twitter, header/footer, Vercel Analytics
-app/page.tsx                      # H1, tool, "how it's calculated", FAQ, WebApplication + FAQPage JSON-LD
-app/guide/wcag-aa-vs-aaa/page.tsx # long-tail guide (Article JSON-LD)
-app/sitemap.ts, app/robots.ts
-app/favicon.ico
+app/[locale]/layout.tsx           # root layout per locale: <html lang>, metadata, OG/Twitter, header + language switcher, footer, Vercel Analytics
+app/[locale]/page.tsx             # H1, tool, "how it's calculated", FAQ, localized WebApplication + FAQPage JSON-LD
+app/[locale]/guide/wcag-aa-vs-aaa/page.tsx  # long-tail guide (localized Article JSON-LD)
+app/sitemap.ts                    # every page × 7 locales with hreflang alternates
+app/robots.ts, app/favicon.ico
 components/ContrastTool.tsx       # client tool: pickers, badges, preview, swap/copy, ?fg=&bg= sync, nudge, presets
+components/LanguageSwitcher.tsx   # header language menu (keeps path + ?fg=&bg=, tracks `locale_switch`)
+components/Rich.tsx               # renders **bold**, `code`, _em_ from dictionary strings
 lib/contrast.ts                   # WCAG luminance / ratio / pass-fail / hex helpers / lightness nudge
-lib/contrast.test.ts              # Vitest unit tests
-lib/site.ts                       # site URL, name, description, FAQ copy
+lib/i18n/config.ts                # locales, page list, locale paths, hreflang map
+lib/i18n/dictionaries/{locale}.json  # all copy; en.json is the source of truth, other locales are typed from it
+lib/i18n/seo.ts, lib/i18n/format.ts  # canonical/hreflang helpers, Intl ratio formatting
+lib/**/*.test.ts                  # Vitest unit tests
+lib/site.ts                       # site URL + name
 public/og.png, favicon.svg, apple-touch-icon.png
 ```
+
+## Languages
+
+English is served at the root (`/`, `/guide/wcag-aa-vs-aaa/`) by rewriting to the `en` locale; `/en/…` permanently
+redirects to the root URL. Other locales are prefixed: `/zh/`, `/es/`, `/de/`, `/fr/`, `/ja/`, `/pt/`.
+To add copy, add the key to `en.json` and every other dictionary (tests fail on missing, extra or empty keys).
+To add a page, add it to `PAGES` in `lib/i18n/config.ts`.
 
 ## Local run
 
@@ -36,7 +48,7 @@ Requires Node 20+.
 ```bash
 npm install
 npm run dev      # http://localhost:3000
-npm test         # unit tests for lib/contrast.ts (Vitest)
+npm test         # unit tests: contrast math, dictionaries, routes, sitemap/hreflang (Vitest)
 npm run build    # production build
 ```
 

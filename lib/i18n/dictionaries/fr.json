@@ -1,0 +1,155 @@
+{
+  "meta": {
+    "siteTitle": "Vérificateur de contraste des couleurs (WCAG AA et AAA)",
+    "siteDescription": "Vérificateur de contraste des couleurs gratuit pour WCAG 2.2 AA et AAA. Saisissez deux couleurs hexadécimales pour obtenir le rapport de contraste et savoir s’il est conforme pour le texte normal, le texte de grande taille et les composants d’interface, avec un aperçu en direct et un lien à partager. Fonctionne entièrement dans votre navigateur.",
+    "ogImageAlt": "ContrastCheck — vérificateur de contraste des couleurs",
+    "guideTitle": "Contraste WCAG AA ou AAA : les rapports expliqués",
+    "guideDescription": "La différence entre les niveaux de contraste WCAG AA et AAA : 4,5:1 contre 7:1 pour le texte normal, 3:1 contre 4,5:1 pour le texte de grande taille, ce qui compte comme grand texte et le niveau dont votre projet a vraiment besoin."
+  },
+  "nav": {
+    "guide": "WCAG AA ou AAA",
+    "language": "Langue",
+    "home": "Accueil ContrastCheck"
+  },
+  "footer": {
+    "text": "© {year} {site}. Vérificateur de contraste des couleurs gratuit, qui fonctionne uniquement dans votre navigateur. Les résultats suivent les formules de contraste WCAG 2.2 ; vérifiez toujours auprès d’utilisateurs réels et avec des technologies d’assistance."
+  },
+  "home": {
+    "h1": "Vérificateur de contraste des couleurs",
+    "intro": "Vérifiez n’importe quelle combinaison de couleur de texte et d’arrière-plan selon WCAG 2.2 AA et AAA. Obtenez le rapport de contraste exact, la conformité pour le texte normal, le texte de grande taille et les composants d’interface, ainsi qu’un lien à partager. Gratuit et confidentiel : tout s’exécute dans votre navigateur.",
+    "howTitle": "Comment le rapport de contraste est calculé",
+    "howIntro": "WCAG définit le contraste à partir de la **luminance relative**, c’est-à-dire la luminosité perçue d’une couleur par l’œil humain, sur une échelle de 0 (noir) à 1 (blanc). Pour chaque couleur, ContrastCheck :",
+    "howSteps": [
+      "décompose la valeur hexadécimale en canaux rouge, vert et bleu, puis divise chacun par 255 ;",
+      "linéarise chaque canal : les valeurs ≤ 0,04045 sont divisées par 12,92, les autres passent par `((c + 0.055) / 1.055)^2.4` ;",
+      "les pondère selon la sensibilité de l’œil à chacun : `L = 0.2126·R + 0.7152·G + 0.0722·B`."
+    ],
+    "howRatio": "Le rapport de contraste vaut alors `(L_lighter + 0.05) / (L_darker + 0.05)`, de 1:1 pour deux couleurs identiques à 21:1 pour du noir sur blanc. Le résultat est comparé aux seuils sans arrondi : 4,5:1 (AA) et 7:1 (AAA) pour le texte normal, 3:1 (AA) et 4,5:1 (AAA) pour le texte de grande taille, et 3:1 pour les composants d’interface et les éléments graphiques.",
+    "readMorePrefix": "Vous hésitez sur le niveau à viser ? Lisez",
+    "readMoreLink": "Contraste WCAG AA ou AAA : lequel choisir ?",
+    "faqTitle": "FAQ sur le contraste des couleurs"
+  },
+  "faq": [
+    {
+      "q": "Qu’est-ce qu’un bon rapport de contraste des couleurs ?",
+      "a": "Le niveau AA de WCAG 2.2 exige au moins 4,5:1 pour le texte courant et 3:1 pour le texte de grande taille. Le niveau AAA relève ces seuils à 7:1 pour le texte normal et 4,5:1 pour le grand texte. Les rapports vont de 1:1 (couleurs identiques) à 21:1 (noir sur blanc)."
+    },
+    {
+      "q": "Qu’est-ce qu’un texte de grande taille selon WCAG ?",
+      "a": "Un texte de grande taille mesure au moins 18 points (environ 24 px CSS) en graisse normale, ou au moins 14 points (environ 18,66 px CSS) en gras. Ses seuils de contraste sont plus bas, car des caractères plus grands sont plus faciles à lire."
+    },
+    {
+      "q": "En quoi consiste l’exigence de 3:1 pour les composants d’interface et les graphiques ?",
+      "a": "Le critère de succès 1.4.11 de WCAG, Contraste du contenu non textuel, exige un rapport de 3:1 pour les contours visuels des contrôles interactifs (bordures de champs, indicateurs de focus, états des interrupteurs) et pour les objets graphiques nécessaires à la compréhension, comme les icônes et les courbes de graphiques."
+    },
+    {
+      "q": "L’ordre entre premier plan et arrière-plan a-t-il une importance ?",
+      "a": "Non. La formule WCAG divise toujours la luminance de la couleur la plus claire par celle de la plus foncée : inverser premier plan et arrière-plan donne donc le même rapport. L’aperçu change, mais pas les chiffres ni les résultats."
+    },
+    {
+      "q": "Mes données sont-elles envoyées quelque part ?",
+      "a": "Non. Ce vérificateur fonctionne entièrement dans votre navigateur. Vos couleurs ne sont enregistrées que dans l’URL de la page (?fg=…&bg=…), ce qui vous permet de mettre une combinaison en favori ou de la partager."
+    },
+    {
+      "q": "Pourquoi 4,49:1 échoue-t-il alors que c’est si proche de 4,5:1 ?",
+      "a": "Les seuils WCAG sont des minimums stricts, sans arrondi. ContrastCheck compare le rapport exact et tronque la valeur affichée : une combinaison affichée à 4,49:1 n’est donc pas conforme AA pour le texte normal. Utilisez la couleur suggérée pour franchir la barre."
+    },
+    {
+      "q": "Ce vérificateur prend-il en charge APCA ou WCAG 3 ?",
+      "a": "Pas encore. ContrastCheck utilise le rapport de contraste WCAG 2.x, celui auquel se réfèrent aujourd’hui les lois et normes d’achat public (recommandations ADA, Section 508, EN 301 549 / Acte européen sur l’accessibilité, RGAA)."
+    }
+  ],
+  "tool": {
+    "sectionLabel": "Outil de vérification du contraste",
+    "fgLabel": "Texte (premier plan)",
+    "bgLabel": "Arrière-plan",
+    "pickerLabel": "Sélecteur de couleur : {label}",
+    "hexError": "Saisissez une couleur hexadécimale à 3 ou 6 chiffres, par ex. #1a1a1a",
+    "swap": "Inverser",
+    "swapLabel": "Inverser les couleurs de premier plan et d’arrière-plan",
+    "swapTitle": "Inverser les couleurs",
+    "ratioLabel": "Rapport de contraste",
+    "copyRatio": "Copier le rapport",
+    "copyHexes": "Copier les codes hex",
+    "copyLink": "Copier le lien",
+    "copiedRatio": "Rapport copié",
+    "copiedHexes": "Couleurs hexadécimales copiées",
+    "copiedLink": "Lien de partage copié",
+    "copyFailed": "Échec de la copie — sélectionnez et copiez manuellement",
+    "hexPair": "{fg} sur {bg}",
+    "pass": "Conforme",
+    "fail": "Non conforme",
+    "normalText": "Texte normal",
+    "largeText": "Grand texte",
+    "uiComponents": "Composants d’interface et graphiques",
+    "uiCriterion": "CS 1.4.11",
+    "suggestionTitle": "Couleur de texte conforme la plus proche (même teinte, luminosité ajustée) :",
+    "presetsTitle": "Combinaisons prédéfinies",
+    "white": "Blanc",
+    "previewLabel": "Aperçu en direct",
+    "previewHeading": "Grand titre (24 px gras)",
+    "previewBody": "Texte courant en 16 px. Portez ce vieux whisky au juge blond qui fume. Un bon contraste garde les paragraphes lisibles pour les personnes malvoyantes, daltoniennes ou qui consultent leur téléphone en plein soleil.",
+    "previewSmall": "Petits caractères en 14 px — les mentions en petit doivent aussi respecter le seuil du texte normal.",
+    "solidButton": "Bouton plein",
+    "outlineButton": "Bouton à contour",
+    "textLink": "Lien texte"
+  },
+  "guide": {
+    "headline": "Contraste WCAG AA ou AAA : quel niveau viser ?",
+    "breadcrumbHome": "Vérificateur de contraste",
+    "breadcrumbGuide": "Guide",
+    "intro": "WCAG 2.2 définit deux niveaux de contraste pour le texte. **AA** est le niveau auquel renvoient la plupart des lois et politiques d’accessibilité ; **AAA** est un niveau renforcé pour les contenus qui doivent être lisibles par le plus grand nombre.",
+    "tableTitle": "Les seuils en un coup d’œil",
+    "colContent": "Contenu",
+    "colAA": "AA (minimum)",
+    "colAAA": "AAA (renforcé)",
+    "rowNormal": "Texte normal",
+    "rowLarge": "Grand texte (≥ 24 px, ou ≥ 18,66 px en gras)",
+    "rowUi": "Composants d’interface et graphiques (CS 1.4.11)",
+    "noAAA": "Pas de niveau AAA distinct",
+    "criteria": "Les critères relatifs au texte sont le CS 1.4.3 Contraste (minimum) pour AA et le CS 1.4.6 Contraste (amélioré) pour AAA. Les logos, le texte purement décoratif et les contrôles désactivés en sont exemptés.",
+    "largeTitle": "Qu’est-ce qu’un « texte de grande taille » ?",
+    "largeBody": "WCAG définit le texte de grande taille comme au moins **18 points** en graisse normale ou **14 points en gras**. Sur le web, 1 pt = 1,333 px, soit environ **24 px** en normal ou **18,66 px** en gras. La plupart des textes courants (14–18 px) sont du texte _normal_ et doivent respecter le seuil le plus strict.",
+    "examplesTitle": "Exemples",
+    "examplePair": "{fg} sur {bg}",
+    "examplePassesAll": "conforme AA et AAA",
+    "exampleJustAAA": "conforme AAA de justesse",
+    "exampleAAOnly": "conforme AA, pas AAA",
+    "exampleFailsAA": "non conforme AA pour le texte normal",
+    "exampleLargeOnly": "grand texte et interface uniquement",
+    "examplesHint": "Cliquez sur un exemple pour l’ouvrir dans le vérificateur.",
+    "whichTitle": "Quel niveau viser ?",
+    "advice": [
+      {
+        "title": "Visez AA partout.",
+        "text": "Les recommandations ADA aux États-Unis, la Section 508, la norme EN 301 549 et l’Acte européen sur l’accessibilité renvoient toutes au niveau AA de WCAG. Ne pas atteindre AA représente un vrai risque de non-conformité."
+      },
+      {
+        "title": "Réservez AAA aux lectures longues.",
+        "text": "Articles, documentation, contenus publics ou médicaux gagnent à avoir un texte courant à 7:1, en particulier pour les lecteurs âgés et les personnes malvoyantes."
+      },
+      {
+        "title": "N’imposez pas AAA sur tout le site.",
+        "text": "Le W3C lui-même indique que AAA ne peut pas être atteint pour tous les contenus. Considérez-le comme un objectif pour le texte principal, pas comme un frein aux couleurs de marque sur les grands titres."
+      },
+      {
+        "title": "N’oubliez pas le contraste non textuel.",
+        "text": "Les bordures de champs, les indicateurs de focus et les icônes porteuses de sens doivent atteindre 3:1 par rapport aux couleurs adjacentes, même si votre texte est conforme."
+      }
+    ],
+    "checkTitle": "Vérifiez vos couleurs",
+    "checkPrefix": "Collez votre palette dans le",
+    "checkLink": "vérificateur de contraste ContrastCheck",
+    "checkSuffix": "pour voir instantanément les résultats AA et AAA. Si une combinaison n’est pas conforme, il propose l’ajustement de luminosité conforme le plus proche."
+  },
+  "jsonLd": {
+    "featureList": [
+      "Rapport de contraste WCAG 2.2",
+      "Conformité AA et AAA pour le texte normal et le grand texte",
+      "Vérification 3:1 des composants d’interface et graphiques",
+      "Aperçu en direct",
+      "URL à partager",
+      "Suggestion de la couleur conforme la plus proche"
+    ]
+  }
+}

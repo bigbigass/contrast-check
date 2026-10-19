@@ -1,0 +1,155 @@
+{
+  "meta": {
+    "siteTitle": "Verificador de contraste de cores (WCAG AA e AAA)",
+    "siteDescription": "Verificador de contraste de cores gratuito para WCAG 2.2 AA e AAA. Digite duas cores hexadecimais para ver a taxa de contraste e se ela é aprovada para texto normal, texto grande e componentes de interface, com pré-visualização ao vivo e link para compartilhar. Funciona totalmente no seu navegador.",
+    "ogImageAlt": "ContrastCheck — verificador de contraste de cores",
+    "guideTitle": "Contraste WCAG AA vs AAA explicado",
+    "guideDescription": "A diferença entre o contraste de cores WCAG AA e AAA: 4,5:1 contra 7:1 para texto normal, 3:1 contra 4,5:1 para texto grande, o que conta como texto grande e qual nível o seu projeto realmente precisa."
+  },
+  "nav": {
+    "guide": "WCAG AA vs AAA",
+    "language": "Idioma",
+    "home": "Início do ContrastCheck"
+  },
+  "footer": {
+    "text": "© {year} {site}. Verificador de contraste de cores gratuito, que roda só no seu navegador. Os resultados seguem as fórmulas de contraste da WCAG 2.2; valide sempre com usuários reais e tecnologias assistivas."
+  },
+  "home": {
+    "h1": "Verificador de contraste de cores",
+    "intro": "Verifique qualquer combinação de cor de texto e de fundo segundo a WCAG 2.2 AA e AAA. Veja a taxa de contraste exata, a aprovação para texto normal, texto grande e componentes de interface, e um link para compartilhar. Gratuito e privado: tudo roda no seu navegador.",
+    "howTitle": "Como a taxa de contraste é calculada",
+    "howIntro": "A WCAG define o contraste com base na **luminância relativa**, ou seja, o quão clara uma cor parece ao olho humano, numa escala de 0 (preto) a 1 (branco). Para cada cor, o ContrastCheck:",
+    "howSteps": [
+      "Separa o valor hexadecimal nos canais vermelho, verde e azul e divide cada um por 255.",
+      "Lineariza cada canal: valores ≤ 0,04045 são divididos por 12,92; os demais passam por `((c + 0.055) / 1.055)^2.4`.",
+      "Pondera os canais conforme a sensibilidade do olho a cada um: `L = 0.2126·R + 0.7152·G + 0.0722·B`."
+    ],
+    "howRatio": "A taxa de contraste é então `(L_lighter + 0.05) / (L_darker + 0.05)`, que vai de 1:1 para cores idênticas até 21:1 para preto sobre branco. O resultado é comparado aos limites sem arredondamento: 4,5:1 (AA) e 7:1 (AAA) para texto normal, 3:1 (AA) e 4,5:1 (AAA) para texto grande, e 3:1 para componentes de interface e gráficos.",
+    "readMorePrefix": "Não sabe qual nível buscar? Leia",
+    "readMoreLink": "Contraste WCAG AA vs AAA: qual usar?",
+    "faqTitle": "Perguntas frequentes sobre contraste de cores"
+  },
+  "faq": [
+    {
+      "q": "Qual é uma boa taxa de contraste de cores?",
+      "a": "O nível AA da WCAG 2.2 exige pelo menos 4,5:1 para texto normal e 3:1 para texto grande. O nível AAA eleva esses valores para 7:1 no texto normal e 4,5:1 no texto grande. As taxas vão de 1:1 (cores idênticas) a 21:1 (preto sobre branco)."
+    },
+    {
+      "q": "O que conta como texto grande na WCAG?",
+      "a": "Texto grande tem pelo menos 18 pontos (cerca de 24 px de CSS) em peso normal, ou pelo menos 14 pontos (cerca de 18,66 px de CSS) em negrito. Os limites de contraste para texto grande são menores porque caracteres maiores são mais fáceis de ler."
+    },
+    {
+      "q": "O que é o requisito de 3:1 para componentes de interface e gráficos?",
+      "a": "O critério de sucesso 1.4.11 da WCAG, Contraste não textual, exige uma taxa de 3:1 para os limites visuais de controles interativos (bordas de campos, indicadores de foco, estados de chaves) e para objetos gráficos necessários para entender o conteúdo, como ícones e linhas de gráficos."
+    },
+    {
+      "q": "A ordem entre primeiro plano e fundo faz diferença?",
+      "a": "Não. A fórmula da WCAG sempre divide a luminância da cor mais clara pela da mais escura, então inverter primeiro plano e fundo dá a mesma taxa. A pré-visualização muda, mas os números e os resultados não."
+    },
+    {
+      "q": "Meus dados são enviados para algum lugar?",
+      "a": "Não. Este verificador de contraste roda totalmente no seu navegador. O único lugar onde suas cores ficam salvas é a URL da página (?fg=…&bg=…), o que permite salvar nos favoritos ou compartilhar uma combinação específica."
+    },
+    {
+      "q": "Por que 4,49:1 é reprovado se está tão perto de 4,5:1?",
+      "a": "Os limites da WCAG são mínimos rígidos e não são arredondados. O ContrastCheck compara a taxa exata e trunca o valor exibido, então uma combinação que mostra 4,49:1 é reprovada no AA para texto normal. Use a cor sugerida para passar do limite."
+    },
+    {
+      "q": "Este verificador é compatível com APCA ou WCAG 3?",
+      "a": "Ainda não. O ContrastCheck usa a taxa de contraste da WCAG 2.x, que é a referência das leis e normas de contratação atuais (orientações da ADA, Section 508, EN 301 549 / Ato Europeu de Acessibilidade, Lei Brasileira de Inclusão e eMAG)."
+    }
+  ],
+  "tool": {
+    "sectionLabel": "Ferramenta de verificação de contraste",
+    "fgLabel": "Texto (primeiro plano)",
+    "bgLabel": "Fundo",
+    "pickerLabel": "Seletor de cor: {label}",
+    "hexError": "Digite uma cor hexadecimal de 3 ou 6 dígitos, por exemplo #1a1a1a",
+    "swap": "Inverter",
+    "swapLabel": "Inverter as cores de primeiro plano e de fundo",
+    "swapTitle": "Inverter cores",
+    "ratioLabel": "Taxa de contraste",
+    "copyRatio": "Copiar taxa",
+    "copyHexes": "Copiar hex",
+    "copyLink": "Copiar link",
+    "copiedRatio": "Taxa copiada",
+    "copiedHexes": "Cores hexadecimais copiadas",
+    "copiedLink": "Link de compartilhamento copiado",
+    "copyFailed": "Não foi possível copiar — selecione e copie manualmente",
+    "hexPair": "{fg} sobre {bg}",
+    "pass": "Aprovado",
+    "fail": "Reprovado",
+    "normalText": "Texto normal",
+    "largeText": "Texto grande",
+    "uiComponents": "Componentes de interface e gráficos",
+    "uiCriterion": "CS 1.4.11",
+    "suggestionTitle": "Cor de texto aprovada mais próxima (mesmo matiz, luminosidade ajustada):",
+    "presetsTitle": "Combinações prontas",
+    "white": "Branco",
+    "previewLabel": "Pré-visualização ao vivo",
+    "previewHeading": "Título grande (24 px negrito)",
+    "previewBody": "Texto normal em 16 px. Jane quer LP, fax, CD, giz, TV e bom whisky. Um bom contraste mantém os parágrafos legíveis para pessoas com baixa visão, daltonismo ou usando o celular sob o sol forte.",
+    "previewSmall": "Letras miúdas em 14 px — textos pequenos também precisam atingir o limite de texto normal.",
+    "solidButton": "Botão sólido",
+    "outlineButton": "Botão com contorno",
+    "textLink": "Link de texto"
+  },
+  "guide": {
+    "headline": "Contraste WCAG AA vs AAA: qual nível você deve buscar?",
+    "breadcrumbHome": "Verificador de contraste de cores",
+    "breadcrumbGuide": "Guia",
+    "intro": "A WCAG 2.2 define dois níveis de contraste de texto. **AA** é o nível citado pela maioria das leis e políticas de acessibilidade; **AAA** é um nível aprimorado para conteúdos que precisam ser legíveis pelo maior número possível de pessoas.",
+    "tableTitle": "Os limites em resumo",
+    "colContent": "Conteúdo",
+    "colAA": "AA (mínimo)",
+    "colAAA": "AAA (aprimorado)",
+    "rowNormal": "Texto normal",
+    "rowLarge": "Texto grande (≥ 24 px, ou ≥ 18,66 px em negrito)",
+    "rowUi": "Componentes de interface e gráficos (CS 1.4.11)",
+    "noAAA": "Sem nível AAA específico",
+    "criteria": "Os critérios de texto são o CS 1.4.3 Contraste (mínimo) para AA e o CS 1.4.6 Contraste (melhorado) para AAA. Logotipos, texto puramente decorativo e controles desativados estão isentos.",
+    "largeTitle": "O que conta como “texto grande”?",
+    "largeBody": "A WCAG define texto grande como pelo menos **18 pontos** em peso normal ou **14 pontos em negrito**. Na web, 1 pt = 1,333 px, então isso equivale a cerca de **24 px** normal ou **18,66 px** em negrito. A maior parte do texto corrido (14–18 px) é texto _normal_ e precisa do limite mais rigoroso.",
+    "examplesTitle": "Exemplos",
+    "examplePair": "{fg} sobre {bg}",
+    "examplePassesAll": "aprovado em AA e AAA",
+    "exampleJustAAA": "aprovado em AAA por pouco",
+    "exampleAAOnly": "aprovado em AA, reprovado em AAA",
+    "exampleFailsAA": "reprovado em AA para texto normal",
+    "exampleLargeOnly": "só texto grande e interface",
+    "examplesHint": "Clique em qualquer exemplo para abri-lo no verificador.",
+    "whichTitle": "Qual nível você deve buscar?",
+    "advice": [
+      {
+        "title": "Busque AA em tudo.",
+        "text": "As orientações da ADA nos EUA, a Section 508, a EN 301 549 e o Ato Europeu de Acessibilidade apontam para o nível AA da WCAG. Não atingir AA é um risco real de não conformidade."
+      },
+      {
+        "title": "Use AAA para leituras longas.",
+        "text": "Artigos, documentação e conteúdos de governo e saúde se beneficiam de texto corrido em 7:1, especialmente para leitores mais velhos e pessoas com baixa visão."
+      },
+      {
+        "title": "Não exija AAA no site inteiro.",
+        "text": "O próprio W3C observa que não é possível atingir AAA em todo o conteúdo. Trate-o como meta para o texto principal, não como um impedimento para usar as cores da marca em títulos grandes."
+      },
+      {
+        "title": "Não esqueça o contraste não textual.",
+        "text": "Bordas de campos, indicadores de foco e ícones que transmitem significado precisam de 3:1 em relação às cores adjacentes, mesmo que o seu texto seja aprovado."
+      }
+    ],
+    "checkTitle": "Verifique suas cores",
+    "checkPrefix": "Cole sua paleta no",
+    "checkLink": "verificador de contraste de cores ContrastCheck",
+    "checkSuffix": "para ver os resultados AA e AAA na hora. Se uma combinação não passar, ele sugere o ajuste de luminosidade mais próximo que é aprovado."
+  },
+  "jsonLd": {
+    "featureList": [
+      "Taxa de contraste WCAG 2.2",
+      "Aprovação AA e AAA para texto normal e grande",
+      "Verificação 3:1 para componentes de interface e gráficos",
+      "Pré-visualização ao vivo",
+      "URL para compartilhar",
+      "Sugestão da cor aprovada mais próxima"
+    ]
+  }
+}

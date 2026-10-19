@@ -1,0 +1,155 @@
+{
+  "meta": {
+    "siteTitle": "Color Contrast Checker (WCAG AA & AAA)",
+    "siteDescription": "Free color contrast checker for WCAG 2.2 AA and AAA. Enter two hex colors to get the contrast ratio, pass/fail for normal text, large text and UI components, plus a live preview and shareable link. Runs entirely in your browser.",
+    "ogImageAlt": "ContrastCheck — color contrast checker",
+    "guideTitle": "WCAG AA vs AAA Contrast Ratios Explained",
+    "guideDescription": "The difference between WCAG AA and AAA color contrast: 4.5:1 vs 7:1 for normal text, 3:1 vs 4.5:1 for large text, what counts as large text, and which level your project actually needs."
+  },
+  "nav": {
+    "guide": "WCAG AA vs AAA",
+    "language": "Language",
+    "home": "ContrastCheck home"
+  },
+  "footer": {
+    "text": "© {year} {site}. Free, browser-only color contrast checker. Results follow WCAG 2.2 contrast formulas; always verify with real users and assistive technology."
+  },
+  "home": {
+    "h1": "Color Contrast Checker",
+    "intro": "Check any text and background color pair against WCAG 2.2 AA and AAA. Get the exact contrast ratio, pass/fail for normal text, large text and UI components, and a shareable link. Free and private: everything runs in your browser.",
+    "howTitle": "How the contrast ratio is calculated",
+    "howIntro": "WCAG defines contrast using **relative luminance**, how bright a color appears to the human eye on a scale from 0 (black) to 1 (white). For each color, ContrastCheck:",
+    "howSteps": [
+      "Splits the hex value into red, green and blue channels and divides each by 255.",
+      "Linearizes each channel: values ≤ 0.04045 are divided by 12.92; otherwise `((c + 0.055) / 1.055)^2.4`.",
+      "Weights them by how sensitive our eyes are to each: `L = 0.2126·R + 0.7152·G + 0.0722·B`."
+    ],
+    "howRatio": "The contrast ratio is then `(L_lighter + 0.05) / (L_darker + 0.05)`, which ranges from 1:1 for identical colors to 21:1 for black on white. The result is compared to the thresholds without rounding: 4.5:1 (AA) and 7:1 (AAA) for normal text, 3:1 (AA) and 4.5:1 (AAA) for large text, and 3:1 for UI components and graphics.",
+    "readMorePrefix": "Not sure which level to target? Read",
+    "readMoreLink": "WCAG AA vs AAA contrast: which should you use?",
+    "faqTitle": "Color contrast checker FAQ"
+  },
+  "faq": [
+    {
+      "q": "What is a good color contrast ratio?",
+      "a": "WCAG 2.2 Level AA requires at least 4.5:1 for normal body text and 3:1 for large text. Level AAA raises that to 7:1 for normal text and 4.5:1 for large text. Ratios range from 1:1 (identical colors) to 21:1 (black on white)."
+    },
+    {
+      "q": "What counts as large text in WCAG?",
+      "a": "Large text is at least 18 point (about 24 CSS px) at regular weight, or at least 14 point (about 18.66 CSS px) when bold. Large text has lower contrast thresholds because bigger glyphs are easier to read."
+    },
+    {
+      "q": "What is the 3:1 UI component and graphics requirement?",
+      "a": "WCAG success criterion 1.4.11 Non-text Contrast requires a 3:1 ratio for the visual boundaries of interactive controls (input borders, focus rings, toggle states) and for graphical objects such as icons and chart lines needed to understand content."
+    },
+    {
+      "q": "Does the order of foreground and background matter?",
+      "a": "No. The WCAG formula always divides the lighter color's luminance by the darker one's, so swapping foreground and background gives the same ratio. The preview changes, but the numbers and pass/fail results do not."
+    },
+    {
+      "q": "Is my data uploaded anywhere?",
+      "a": "No. This color contrast checker runs entirely in your browser. The only place your colors are stored is the page URL (?fg=…&bg=…), which lets you bookmark or share a specific pair."
+    },
+    {
+      "q": "Why does 4.49:1 fail when it is so close to 4.5:1?",
+      "a": "WCAG thresholds are hard minimums and are not rounded. ContrastCheck compares the exact ratio and truncates the displayed value, so a pair that shows 4.49:1 fails AA for normal text. Use the suggested color to nudge it over the line."
+    },
+    {
+      "q": "Does this checker support APCA or WCAG 3?",
+      "a": "Not yet. ContrastCheck uses the WCAG 2.x contrast ratio, which is what current laws and procurement standards (ADA guidance, Section 508, EN 301 549 / European Accessibility Act) reference today."
+    }
+  ],
+  "tool": {
+    "sectionLabel": "Color contrast checker tool",
+    "fgLabel": "Text (foreground)",
+    "bgLabel": "Background",
+    "pickerLabel": "{label} color picker",
+    "hexError": "Enter a 3- or 6-digit hex color, e.g. #1a1a1a",
+    "swap": "Swap",
+    "swapLabel": "Swap foreground and background colors",
+    "swapTitle": "Swap colors",
+    "ratioLabel": "Contrast ratio",
+    "copyRatio": "Copy ratio",
+    "copyHexes": "Copy hexes",
+    "copyLink": "Copy link",
+    "copiedRatio": "Copied ratio",
+    "copiedHexes": "Copied hex colors",
+    "copiedLink": "Copied share link",
+    "copyFailed": "Copy failed — select and copy manually",
+    "hexPair": "{fg} on {bg}",
+    "pass": "Pass",
+    "fail": "Fail",
+    "normalText": "Normal text",
+    "largeText": "Large text",
+    "uiComponents": "UI components & graphics",
+    "uiCriterion": "SC 1.4.11",
+    "suggestionTitle": "Closest passing text color (same hue, adjusted lightness):",
+    "presetsTitle": "Preset pairs",
+    "white": "White",
+    "previewLabel": "Live preview",
+    "previewHeading": "Large heading text (24px bold)",
+    "previewBody": "Normal body text at 16px. The quick brown fox jumps over the lazy dog. Good contrast keeps paragraphs readable for people with low vision, color blindness, or a phone in bright sunlight.",
+    "previewSmall": "Small print at 14px — fine print still needs to meet the normal-text threshold.",
+    "solidButton": "Solid button",
+    "outlineButton": "Outline button",
+    "textLink": "Text link"
+  },
+  "guide": {
+    "headline": "WCAG AA vs AAA Contrast: Which Level Should You Target?",
+    "breadcrumbHome": "Color contrast checker",
+    "breadcrumbGuide": "Guide",
+    "intro": "WCAG 2.2 defines two levels of text contrast. **AA** is the level referenced by most accessibility laws and policies; **AAA** is an enhanced level for content that needs to be readable by as many people as possible.",
+    "tableTitle": "The thresholds at a glance",
+    "colContent": "Content",
+    "colAA": "AA (minimum)",
+    "colAAA": "AAA (enhanced)",
+    "rowNormal": "Normal text",
+    "rowLarge": "Large text (≥ 24px, or ≥ 18.66px bold)",
+    "rowUi": "UI components & graphics (SC 1.4.11)",
+    "noAAA": "No separate AAA level",
+    "criteria": "The text criteria are SC 1.4.3 Contrast (Minimum) for AA and SC 1.4.6 Contrast (Enhanced) for AAA. Logos, purely decorative text and disabled controls are exempt.",
+    "largeTitle": "What counts as “large text”?",
+    "largeBody": "WCAG defines large text as at least **18 point** regular or **14 point bold**. On the web, 1pt = 1.333px, so that is roughly **24px** regular or **18.66px** bold. Most body copy (14–18px) is _normal_ text and needs the stricter threshold.",
+    "examplesTitle": "Examples",
+    "examplePair": "{fg} on {bg}",
+    "examplePassesAll": "passes AA and AAA",
+    "exampleJustAAA": "just passes AAA",
+    "exampleAAOnly": "passes AA, fails AAA",
+    "exampleFailsAA": "fails AA for normal text",
+    "exampleLargeOnly": "large text and UI only",
+    "examplesHint": "Click any example to open it in the checker.",
+    "whichTitle": "Which level should you target?",
+    "advice": [
+      {
+        "title": "Aim for AA everywhere.",
+        "text": "ADA guidance in the US, Section 508, EN 301 549 and the European Accessibility Act all point to WCAG Level AA. Failing AA is a real compliance risk."
+      },
+      {
+        "title": "Use AAA for long-form reading.",
+        "text": "Articles, documentation, government and healthcare content benefit from 7:1 body text, especially for older readers and people with low vision."
+      },
+      {
+        "title": "Don’t require AAA site-wide.",
+        "text": "W3C itself notes that AAA cannot be met for all content. Treat it as a goal for primary text, not a blocker for brand colors on large headings."
+      },
+      {
+        "title": "Don’t forget non-text contrast.",
+        "text": "Input borders, focus indicators and icons that convey meaning need 3:1 against adjacent colors, even if your text passes."
+      }
+    ],
+    "checkTitle": "Check your colors",
+    "checkPrefix": "Paste your palette into the",
+    "checkLink": "ContrastCheck color contrast checker",
+    "checkSuffix": "to see AA and AAA results instantly. If a pair falls short, it suggests the closest lightness adjustment that passes."
+  },
+  "jsonLd": {
+    "featureList": [
+      "WCAG 2.2 contrast ratio",
+      "AA and AAA pass/fail for normal and large text",
+      "UI components and graphics 3:1 check",
+      "Live preview",
+      "Shareable URL",
+      "Closest passing color suggestion"
+    ]
+  }
+}

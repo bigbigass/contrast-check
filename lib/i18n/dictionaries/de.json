@@ -1,0 +1,155 @@
+{
+  "meta": {
+    "siteTitle": "Farbkontrast-Checker (WCAG AA & AAA)",
+    "siteDescription": "Kostenloser Farbkontrast-Checker für WCAG 2.2 AA und AAA. Zwei Hex-Farben eingeben und Kontrastverhältnis sowie Bestanden/Nicht bestanden für normalen Text, großen Text und UI-Komponenten erhalten – mit Live-Vorschau und teilbarem Link. Läuft vollständig in Ihrem Browser.",
+    "ogImageAlt": "ContrastCheck – Farbkontrast-Checker",
+    "guideTitle": "WCAG AA vs. AAA: Kontrastverhältnisse erklärt",
+    "guideDescription": "Der Unterschied zwischen WCAG-AA- und AAA-Farbkontrast: 4,5:1 vs. 7:1 für normalen Text, 3:1 vs. 4,5:1 für großen Text, was als großer Text gilt und welche Stufe Ihr Projekt wirklich braucht."
+  },
+  "nav": {
+    "guide": "WCAG AA vs. AAA",
+    "language": "Sprache",
+    "home": "ContrastCheck Startseite"
+  },
+  "footer": {
+    "text": "© {year} {site}. Kostenloser Farbkontrast-Checker, der nur in Ihrem Browser läuft. Die Ergebnisse folgen den Kontrastformeln von WCAG 2.2; prüfen Sie stets auch mit echten Nutzerinnen und Nutzern und assistiven Technologien."
+  },
+  "home": {
+    "h1": "Farbkontrast-Checker",
+    "intro": "Prüfen Sie jede Kombination aus Text- und Hintergrundfarbe nach WCAG 2.2 AA und AAA. Sie erhalten das exakte Kontrastverhältnis, das Ergebnis für normalen Text, großen Text und UI-Komponenten sowie einen teilbaren Link. Kostenlos und privat: Alles läuft in Ihrem Browser.",
+    "howTitle": "So wird das Kontrastverhältnis berechnet",
+    "howIntro": "WCAG definiert Kontrast über die **relative Leuchtdichte** – also wie hell das menschliche Auge eine Farbe wahrnimmt, auf einer Skala von 0 (Schwarz) bis 1 (Weiß). Für jede Farbe geht ContrastCheck so vor:",
+    "howSteps": [
+      "Der Hex-Wert wird in die Kanäle Rot, Grün und Blau zerlegt und jeder Kanal durch 255 geteilt.",
+      "Jeder Kanal wird linearisiert: Werte ≤ 0,04045 werden durch 12,92 geteilt, alle anderen mit `((c + 0.055) / 1.055)^2.4` umgerechnet.",
+      "Die Kanäle werden nach der Empfindlichkeit des Auges gewichtet: `L = 0.2126·R + 0.7152·G + 0.0722·B`."
+    ],
+    "howRatio": "Das Kontrastverhältnis ist dann `(L_lighter + 0.05) / (L_darker + 0.05)` und reicht von 1:1 bei identischen Farben bis 21:1 bei Schwarz auf Weiß. Das Ergebnis wird ungerundet mit den Schwellenwerten verglichen: 4,5:1 (AA) und 7:1 (AAA) für normalen Text, 3:1 (AA) und 4,5:1 (AAA) für großen Text sowie 3:1 für UI-Komponenten und Grafiken.",
+    "readMorePrefix": "Unsicher, welche Stufe Sie anstreben sollten? Lesen Sie",
+    "readMoreLink": "WCAG AA vs. AAA: Welcher Kontrast ist der richtige?",
+    "faqTitle": "FAQ zum Farbkontrast-Checker"
+  },
+  "faq": [
+    {
+      "q": "Welches Farbkontrastverhältnis ist gut?",
+      "a": "WCAG 2.2 Stufe AA verlangt mindestens 4,5:1 für normalen Fließtext und 3:1 für großen Text. Stufe AAA hebt das auf 7:1 für normalen und 4,5:1 für großen Text an. Die Werte reichen von 1:1 (identische Farben) bis 21:1 (Schwarz auf Weiß)."
+    },
+    {
+      "q": "Was gilt in WCAG als großer Text?",
+      "a": "Großer Text hat mindestens 18 Punkt (etwa 24 CSS-Pixel) in normaler Schriftstärke oder mindestens 14 Punkt (etwa 18,66 CSS-Pixel) in Fettschrift. Für großen Text gelten niedrigere Schwellenwerte, weil größere Zeichen leichter zu lesen sind."
+    },
+    {
+      "q": "Was bedeutet die 3:1-Anforderung für UI-Komponenten und Grafiken?",
+      "a": "Das WCAG-Erfolgskriterium 1.4.11 „Nicht-Text-Kontrast“ verlangt ein Verhältnis von 3:1 für die sichtbaren Begrenzungen interaktiver Bedienelemente (Eingabefeldrahmen, Fokusindikatoren, Schalterzustände) und für grafische Objekte wie Icons und Diagrammlinien, die zum Verständnis der Inhalte nötig sind."
+    },
+    {
+      "q": "Spielt die Reihenfolge von Vorder- und Hintergrund eine Rolle?",
+      "a": "Nein. Die WCAG-Formel teilt immer die Leuchtdichte der helleren Farbe durch die der dunkleren. Tauschen Sie Vorder- und Hintergrund, bleibt das Verhältnis gleich. Die Vorschau ändert sich, die Werte und Ergebnisse nicht."
+    },
+    {
+      "q": "Werden meine Daten irgendwohin hochgeladen?",
+      "a": "Nein. Dieser Farbkontrast-Checker läuft vollständig in Ihrem Browser. Ihre Farben werden ausschließlich in der Seiten-URL gespeichert (?fg=…&bg=…), damit Sie eine bestimmte Kombination als Lesezeichen speichern oder teilen können."
+    },
+    {
+      "q": "Warum fällt 4,49:1 durch, obwohl es so nah an 4,5:1 liegt?",
+      "a": "WCAG-Schwellenwerte sind harte Mindestwerte und werden nicht gerundet. ContrastCheck vergleicht das exakte Verhältnis und schneidet den angezeigten Wert ab, statt aufzurunden – eine Kombination mit 4,49:1 besteht AA für normalen Text also nicht. Mit der vorgeschlagenen Farbe schaffen Sie den Sprung über die Grenze."
+    },
+    {
+      "q": "Unterstützt dieser Checker APCA oder WCAG 3?",
+      "a": "Noch nicht. ContrastCheck verwendet das Kontrastverhältnis nach WCAG 2.x, auf das sich aktuelle Gesetze und Beschaffungsstandards beziehen (ADA-Leitlinien, Section 508, EN 301 549 / European Accessibility Act bzw. Barrierefreiheitsstärkungsgesetz)."
+    }
+  ],
+  "tool": {
+    "sectionLabel": "Farbkontrast-Checker",
+    "fgLabel": "Text (Vordergrund)",
+    "bgLabel": "Hintergrund",
+    "pickerLabel": "Farbwähler für {label}",
+    "hexError": "Geben Sie eine 3- oder 6-stellige Hex-Farbe ein, z. B. #1a1a1a",
+    "swap": "Tauschen",
+    "swapLabel": "Vorder- und Hintergrundfarbe tauschen",
+    "swapTitle": "Farben tauschen",
+    "ratioLabel": "Kontrastverhältnis",
+    "copyRatio": "Verhältnis kopieren",
+    "copyHexes": "Hex-Werte kopieren",
+    "copyLink": "Link kopieren",
+    "copiedRatio": "Verhältnis kopiert",
+    "copiedHexes": "Hex-Farben kopiert",
+    "copiedLink": "Link zum Teilen kopiert",
+    "copyFailed": "Kopieren fehlgeschlagen – bitte manuell markieren und kopieren",
+    "hexPair": "{fg} auf {bg}",
+    "pass": "Bestanden",
+    "fail": "Nicht bestanden",
+    "normalText": "Normaler Text",
+    "largeText": "Großer Text",
+    "uiComponents": "UI-Komponenten & Grafiken",
+    "uiCriterion": "EK 1.4.11",
+    "suggestionTitle": "Nächstgelegene bestehende Textfarbe (gleicher Farbton, angepasste Helligkeit):",
+    "presetsTitle": "Vorlagen",
+    "white": "Weiß",
+    "previewLabel": "Live-Vorschau",
+    "previewHeading": "Große Überschrift (24 px fett)",
+    "previewBody": "Normaler Fließtext in 16 px. Victor jagt zwölf Boxkämpfer quer über den großen Sylter Deich. Guter Kontrast hält Absätze lesbar – für Menschen mit Sehbehinderung, Farbenblindheit oder einem Handy in praller Sonne.",
+    "previewSmall": "Kleingedrucktes in 14 px – auch das muss den Schwellenwert für normalen Text erfüllen.",
+    "solidButton": "Gefüllter Button",
+    "outlineButton": "Umrandeter Button",
+    "textLink": "Textlink"
+  },
+  "guide": {
+    "headline": "WCAG AA vs. AAA: Welche Kontraststufe sollten Sie anstreben?",
+    "breadcrumbHome": "Farbkontrast-Checker",
+    "breadcrumbGuide": "Ratgeber",
+    "intro": "WCAG 2.2 definiert zwei Stufen für Textkontrast. **AA** ist die Stufe, auf die sich die meisten Barrierefreiheitsgesetze und -richtlinien beziehen; **AAA** ist eine erweiterte Stufe für Inhalte, die für möglichst viele Menschen lesbar sein müssen.",
+    "tableTitle": "Die Schwellenwerte im Überblick",
+    "colContent": "Inhalt",
+    "colAA": "AA (Minimum)",
+    "colAAA": "AAA (erweitert)",
+    "rowNormal": "Normaler Text",
+    "rowLarge": "Großer Text (≥ 24 px oder ≥ 18,66 px fett)",
+    "rowUi": "UI-Komponenten & Grafiken (EK 1.4.11)",
+    "noAAA": "Keine eigene AAA-Stufe",
+    "criteria": "Die Textkriterien sind EK 1.4.3 Kontrast (Minimum) für AA und EK 1.4.6 Kontrast (erweitert) für AAA. Logos, rein dekorativer Text und deaktivierte Bedienelemente sind ausgenommen.",
+    "largeTitle": "Was gilt als „großer Text“?",
+    "largeBody": "WCAG definiert großen Text als mindestens **18 Punkt** normal oder **14 Punkt fett**. Im Web gilt 1 pt = 1,333 px, das entspricht also etwa **24 px** normal oder **18,66 px** fett. Der meiste Fließtext (14–18 px) ist _normaler_ Text und muss den strengeren Schwellenwert erfüllen.",
+    "examplesTitle": "Beispiele",
+    "examplePair": "{fg} auf {bg}",
+    "examplePassesAll": "besteht AA und AAA",
+    "exampleJustAAA": "besteht AAA knapp",
+    "exampleAAOnly": "besteht AA, nicht AAA",
+    "exampleFailsAA": "besteht AA für normalen Text nicht",
+    "exampleLargeOnly": "nur großer Text und UI",
+    "examplesHint": "Klicken Sie auf ein Beispiel, um es im Checker zu öffnen.",
+    "whichTitle": "Welche Stufe sollten Sie anstreben?",
+    "advice": [
+      {
+        "title": "Überall mindestens AA.",
+        "text": "Die ADA-Leitlinien in den USA, Section 508, EN 301 549 und der European Accessibility Act verweisen alle auf WCAG-Stufe AA. Wer AA verfehlt, geht ein echtes Compliance-Risiko ein."
+      },
+      {
+        "title": "AAA für lange Lesetexte.",
+        "text": "Artikel, Dokumentation sowie Inhalte von Behörden und aus dem Gesundheitswesen profitieren von Fließtext mit 7:1 – besonders für ältere Lesende und Menschen mit Sehbehinderung."
+      },
+      {
+        "title": "AAA nicht für die ganze Website vorschreiben.",
+        "text": "Das W3C selbst weist darauf hin, dass AAA nicht für alle Inhalte erreichbar ist. Betrachten Sie es als Ziel für den Haupttext, nicht als Hindernis für Markenfarben in großen Überschriften."
+      },
+      {
+        "title": "Nicht-Text-Kontrast nicht vergessen.",
+        "text": "Eingabefeldrahmen, Fokusindikatoren und bedeutungstragende Icons brauchen 3:1 zu angrenzenden Farben – auch wenn Ihr Text besteht."
+      }
+    ],
+    "checkTitle": "Prüfen Sie Ihre Farben",
+    "checkPrefix": "Fügen Sie Ihre Palette in den",
+    "checkLink": "ContrastCheck Farbkontrast-Checker",
+    "checkSuffix": "ein und sehen Sie sofort die AA- und AAA-Ergebnisse. Fällt eine Kombination durch, schlägt er die nächstgelegene Helligkeitsanpassung vor, die besteht."
+  },
+  "jsonLd": {
+    "featureList": [
+      "Kontrastverhältnis nach WCAG 2.2",
+      "AA- und AAA-Ergebnis für normalen und großen Text",
+      "3:1-Prüfung für UI-Komponenten und Grafiken",
+      "Live-Vorschau",
+      "Teilbare URL",
+      "Vorschlag der nächstgelegenen bestehenden Farbe"
+    ]
+  }
+}

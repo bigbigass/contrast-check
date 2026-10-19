@@ -4,23 +4,29 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   THRESHOLDS,
   checkContrast,
-  formatRatio,
   normalizeHex,
   suggestLightnessNudge,
 } from "@/lib/contrast";
+import type { Locale } from "@/lib/i18n/config";
+import type { Dictionary } from "@/lib/i18n/dictionaries";
+import { fill } from "@/lib/i18n/fill";
+import { formatRatioLocale, formatThreshold } from "@/lib/i18n/format";
+
+type ToolText = Dictionary["tool"];
 
 const DEFAULT_FG = "#1a1a1a";
 const DEFAULT_BG = "#ffffff";
 
-const PRESETS: { name: string; fg: string; bg: string }[] = [
-  { name: "Slate 900 / White", fg: "#0f172a", bg: "#ffffff" },
-  { name: "Indigo 600 / White", fg: "#4f46e5", bg: "#ffffff" },
-  { name: "White / Indigo 700", fg: "#ffffff", bg: "#4338ca" },
-  { name: "Gray 500 / White", fg: "#6b7280", bg: "#ffffff" },
-  { name: "Amber 400 / Slate 900", fg: "#fbbf24", bg: "#0f172a" },
-  { name: "Emerald 600 / White", fg: "#059669", bg: "#ffffff" },
-  { name: "Red 500 / White", fg: "#ef4444", bg: "#ffffff" },
-  { name: "Slate 400 / Slate 800", fg: "#94a3b8", bg: "#1e293b" },
+// Tailwind palette names; "White" is localized at render time.
+const PRESETS: { fgName: string; bgName: string; fg: string; bg: string }[] = [
+  { fgName: "Slate 900", bgName: "White", fg: "#0f172a", bg: "#ffffff" },
+  { fgName: "Indigo 600", bgName: "White", fg: "#4f46e5", bg: "#ffffff" },
+  { fgName: "White", bgName: "Indigo 700", fg: "#ffffff", bg: "#4338ca" },
+  { fgName: "Gray 500", bgName: "White", fg: "#6b7280", bg: "#ffffff" },
+  { fgName: "Amber 400", bgName: "Slate 900", fg: "#fbbf24", bg: "#0f172a" },
+  { fgName: "Emerald 600", bgName: "White", fg: "#059669", bg: "#ffffff" },
+  { fgName: "Red 500", bgName: "White", fg: "#ef4444", bg: "#ffffff" },
+  { fgName: "Slate 400", bgName: "Slate 800", fg: "#94a3b8", bg: "#1e293b" },
 ];
 
 function readQuery(): { fg: string; bg: string } {
@@ -36,11 +42,13 @@ function ColorField({
   label,
   value,
   onChange,
+  t,
 }: {
   id: string;
   label: string;
   value: string;
   onChange: (hex: string) => void;
+  t: ToolText;
 }) {
   const [text, setText] = useState(value);
   // Keep the text box in sync when the color changes from elsewhere (swap, picker, preset).
@@ -57,7 +65,7 @@ function ColorField({
       <div className="flex items-stretch gap-2">
         <input
           type="color"
-          aria-label={`${label} color picker`}
+          aria-label={fill(t.pickerLabel, { label })}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className="h-11 w-14 cursor-pointer rounded-md border border-slate-300 bg-white p-1"
@@ -84,14 +92,14 @@ function ColorField({
       </div>
       {invalid && (
         <p id={`${id}-error`} className="mt-1 text-xs text-red-700">
-          Enter a 3- or 6-digit hex color, e.g. #1a1a1a
+          {t.hexError}
         </p>
       )}
     </div>
   );
 }
 
-function Badge({ label, detail, pass }: { label: string; detail: string; pass: boolean }) {
+function Badge({ label, detail, pass, t }: { label: string; detail: string; pass: boolean; t: ToolText }) {
   return (
     <div
       className={`flex items-center justify-between rounded-lg border px-3 py-2 ${
@@ -107,13 +115,13 @@ function Badge({ label, detail, pass }: { label: string; detail: string; pass: b
           pass ? "bg-emerald-700 text-white" : "bg-red-700 text-white"
         }`}
       >
-        {pass ? "Pass" : "Fail"}
+        {pass ? t.pass : t.fail}
       </span>
     </div>
   );
 }
 
-export default function ContrastTool() {
+export default function ContrastTool({ locale, t }: { locale: Locale; t: ToolText }) {
   const [fg, setFg] = useState(DEFAULT_FG);
   const [bg, setBg] = useState(DEFAULT_BG);
   const [ready, setReady] = useState(false);
@@ -143,7 +151,8 @@ export default function ContrastTool() {
   }, [fg, bg, ready]);
 
   const result = useMemo(() => checkContrast(fg, bg), [fg, bg]);
-  const ratioText = formatRatio(result.ratio);
+  const ratioText = formatRatioLocale(result.ratio, locale);
+  const th = (v: number) => `≥ ${formatThreshold(v, locale)}`;
 
   const nudgeAA = useMemo(
     () => (result.aaNormal ? null : suggestLightnessNudge(fg, bg, THRESHOLDS.aaNormal)),
@@ -161,15 +170,15 @@ export default function ContrastTool() {
   }, []);
 
   const copy = useCallback(
-    async (text: string, what: string) => {
+    async (text: string, done: string) => {
       try {
         await navigator.clipboard.writeText(text);
-        flash(`Copied ${what}`);
+        flash(done);
       } catch {
-        flash("Copy failed — select and copy manually");
+        flash(t.copyFailed);
       }
     },
-    [flash],
+    [flash, t.copyFailed],
   );
 
   const shareUrl = () => {
@@ -180,11 +189,11 @@ export default function ContrastTool() {
   };
 
   return (
-    <section aria-label="Color contrast checker tool" className="grid gap-6 lg:grid-cols-2">
+    <section aria-label={t.sectionLabel} className="grid gap-6 lg:grid-cols-2">
       {/* Inputs + results */}
       <div className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="grid gap-4 sm:grid-cols-[1fr_auto_1fr] sm:items-end">
-          <ColorField id="fg" label="Text (foreground)" value={fg} onChange={setFg} />
+          <ColorField id="fg" label={t.fgLabel} value={fg} onChange={setFg} t={t} />
           <button
             type="button"
             onClick={() => {
@@ -192,16 +201,16 @@ export default function ContrastTool() {
               setBg(fg);
             }}
             className="h-11 rounded-md border border-slate-300 px-3 text-sm font-medium hover:bg-slate-100 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-            aria-label="Swap foreground and background colors"
-            title="Swap colors"
+            aria-label={t.swapLabel}
+            title={t.swapTitle}
           >
-            ⇄ Swap
+            ⇄ {t.swap}
           </button>
-          <ColorField id="bg" label="Background" value={bg} onChange={setBg} />
+          <ColorField id="bg" label={t.bgLabel} value={bg} onChange={setBg} t={t} />
         </div>
 
         <div className="rounded-xl bg-slate-900 p-4 text-white">
-          <div className="text-xs tracking-wide text-slate-300 uppercase">Contrast ratio</div>
+          <div className="text-xs tracking-wide text-slate-300 uppercase">{t.ratioLabel}</div>
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <output aria-live="polite" className="font-mono text-4xl font-bold tabular-nums">
               {ratioText}
@@ -209,42 +218,42 @@ export default function ContrastTool() {
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => copy(ratioText, "ratio")}
+                onClick={() => copy(ratioText, t.copiedRatio)}
                 className="rounded-md bg-white/10 px-3 py-1.5 text-sm hover:bg-white/20"
               >
-                Copy ratio
+                {t.copyRatio}
               </button>
               <button
                 type="button"
-                onClick={() => copy(`${fg} on ${bg}`, "hex colors")}
+                onClick={() => copy(fill(t.hexPair, { fg, bg }), t.copiedHexes)}
                 className="rounded-md bg-white/10 px-3 py-1.5 text-sm hover:bg-white/20"
               >
-                Copy hexes
+                {t.copyHexes}
               </button>
               <button
                 type="button"
-                onClick={() => copy(shareUrl(), "share link")}
+                onClick={() => copy(shareUrl(), t.copiedLink)}
                 className="rounded-md bg-white/10 px-3 py-1.5 text-sm hover:bg-white/20"
               >
-                Copy link
+                {t.copyLink}
               </button>
             </div>
           </div>
         </div>
 
         <div className="grid gap-2 sm:grid-cols-2">
-          <Badge label="AA · Normal text" detail="≥ 4.5:1" pass={result.aaNormal} />
-          <Badge label="AA · Large text" detail="≥ 3:1" pass={result.aaLarge} />
-          <Badge label="AAA · Normal text" detail="≥ 7:1" pass={result.aaaNormal} />
-          <Badge label="AAA · Large text" detail="≥ 4.5:1" pass={result.aaaLarge} />
+          <Badge t={t} label={`AA · ${t.normalText}`} detail={th(THRESHOLDS.aaNormal)} pass={result.aaNormal} />
+          <Badge t={t} label={`AA · ${t.largeText}`} detail={th(THRESHOLDS.aaLarge)} pass={result.aaLarge} />
+          <Badge t={t} label={`AAA · ${t.normalText}`} detail={th(THRESHOLDS.aaaNormal)} pass={result.aaaNormal} />
+          <Badge t={t} label={`AAA · ${t.largeText}`} detail={th(THRESHOLDS.aaaLarge)} pass={result.aaaLarge} />
           <div className="sm:col-span-2">
-            <Badge label="UI components & graphics" detail="≥ 3:1 (SC 1.4.11)" pass={result.ui} />
+            <Badge t={t} label={t.uiComponents} detail={`${th(THRESHOLDS.ui)} (${t.uiCriterion})`} pass={result.ui} />
           </div>
         </div>
 
         {(nudgeAA || nudgeAAA) && (
           <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm">
-            <p className="font-medium text-slate-900">Closest passing text color (same hue, adjusted lightness):</p>
+            <p className="font-medium text-slate-900">{t.suggestionTitle}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {[
                 { level: "AA", hex: nudgeAA },
@@ -261,7 +270,7 @@ export default function ContrastTool() {
                       <span aria-hidden className="h-4 w-4 rounded border border-slate-300" style={{ background: hex }} />
                       <span className="font-mono">{hex}</span>
                       <span className="text-xs text-slate-600">
-                        {level} · {formatRatio(checkContrast(hex, bg).ratio)}
+                        {level} · {formatRatioLocale(checkContrast(hex, bg).ratio, locale)}
                       </span>
                     </button>
                   ),
@@ -271,11 +280,11 @@ export default function ContrastTool() {
         )}
 
         <div>
-          <h2 className="mb-2 text-sm font-semibold text-slate-700">Preset pairs</h2>
+          <h2 className="mb-2 text-sm font-semibold text-slate-700">{t.presetsTitle}</h2>
           <div className="flex flex-wrap gap-2">
             {PRESETS.map((p) => (
               <button
-                key={p.name}
+                key={p.fg + p.bg}
                 type="button"
                 onClick={() => {
                   setFg(p.fg);
@@ -290,7 +299,7 @@ export default function ContrastTool() {
                 >
                   A
                 </span>
-                {p.name}
+                {[p.fgName, p.bgName].map((n) => (n === "White" ? t.white : n)).join(" / ")}
               </button>
             ))}
           </div>
@@ -301,31 +310,28 @@ export default function ContrastTool() {
       <div
         className="flex flex-col gap-4 rounded-2xl border border-slate-200 p-6 shadow-sm"
         style={{ background: bg, color: fg }}
-        aria-label="Live preview"
+        aria-label={t.previewLabel}
       >
-        <p className="text-xs font-semibold tracking-wide uppercase opacity-80">Live preview</p>
-        <p className="text-3xl font-bold leading-tight">Large heading text (24px bold)</p>
-        <p className="text-base leading-relaxed">
-          Normal body text at 16px. The quick brown fox jumps over the lazy dog. Good contrast keeps paragraphs
-          readable for people with low vision, color blindness, or a phone in bright sunlight.
-        </p>
-        <p className="text-sm">Small print at 14px — fine print still needs to meet the normal-text threshold.</p>
+        <p className="text-xs font-semibold tracking-wide uppercase opacity-80">{t.previewLabel}</p>
+        <p className="text-3xl font-bold leading-tight">{t.previewHeading}</p>
+        <p className="text-base leading-relaxed">{t.previewBody}</p>
+        <p className="text-sm">{t.previewSmall}</p>
         <div className="flex flex-wrap items-center gap-3">
           <span
             className="rounded-md px-4 py-2 text-sm font-semibold"
             style={{ background: fg, color: bg }}
           >
-            Solid button
+            {t.solidButton}
           </span>
           <span className="rounded-md border-2 px-4 py-2 text-sm font-semibold" style={{ borderColor: fg }}>
-            Outline button
+            {t.outlineButton}
           </span>
           <svg aria-hidden width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={fg} strokeWidth="2">
             <circle cx="12" cy="12" r="10" />
             <path d="M8 12l3 3 5-6" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <a href="#how-it-works" className="underline" style={{ color: fg }}>
-            Text link
+            {t.textLink}
           </a>
         </div>
       </div>
