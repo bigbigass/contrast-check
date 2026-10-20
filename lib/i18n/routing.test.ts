@@ -10,7 +10,7 @@ import { pageAlternates } from "./seo";
 /** English URLs that existed before i18n. They must keep working unchanged (no 404, no redirect). */
 const LEGACY_EN_ROUTES = ["/", "/guide/wcag-aa-vs-aaa/"];
 
-const EXPECTED_SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://wcag-contrastcheck.vercel.app").replace(
+const EXPECTED_SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://contrastcheck.top").replace(
   /\/$/,
   "",
 );
