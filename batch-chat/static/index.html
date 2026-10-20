@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>batch-chat</title>
+<style>
+  :root { --bg:#fafafa; --fg:#1d1d1f; --muted:#6b6b70; --line:#e2e2e6; --card:#fff; --accent:#c4623a; --user:#f0ebe6; --err:#b3261e; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#17171a; --fg:#ececf0; --muted:#9a9aa2; --line:#2e2e34; --card:#1f1f23; --accent:#e08a62; --user:#2a2622; --err:#ff8a80; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.5 system-ui, sans-serif; background:var(--bg); color:var(--fg); }
+  header { display:flex; gap:12px; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  header h1 { font-size:16px; margin:0 8px 0 0; }
+  .tabs button { border:1px solid var(--line); background:var(--card); color:var(--fg); padding:6px 14px; cursor:pointer; }
+  .tabs button.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .tabs button:first-child { border-radius:6px 0 0 6px; } .tabs button:last-child { border-radius:0 6px 6px 0; }
+  label { color:var(--muted); font-size:12px; }
+  input, textarea, select { font:inherit; color:var(--fg); background:var(--card); border:1px solid var(--line); border-radius:6px; padding:6px 8px; }
+  button.btn { font:inherit; border:1px solid var(--line); background:var(--card); color:var(--fg); border-radius:6px; padding:6px 12px; cursor:pointer; }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  button:disabled { opacity:.5; cursor:default; }
+  main { height:calc(100vh - 53px); }
+  .view { display:none; height:100%; } .view.active { display:flex; }
+  /* chat */
+  #convs { width:220px; border-right:1px solid var(--line); padding:10px; overflow:auto; flex-shrink:0; }
+  #convs .item { padding:6px 8px; border-radius:6px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; justify-content:space-between; gap:6px; }
+  #convs .item.active { background:var(--user); }
+  #convs .item span.x { color:var(--muted); }
+  .chatcol { flex:1; display:flex; flex-direction:column; min-width:0; }
+  #msgs { flex:1; overflow:auto; padding:16px; }
+  .msg { max-width:800px; margin:0 auto 12px; padding:10px 12px; border-radius:8px; white-space:pre-wrap; word-wrap:break-word; }
+  .msg.user { background:var(--user); }
+  .msg.assistant { background:var(--card); border:1px solid var(--line); }
+  .msg.error { color:var(--err); border:1px solid var(--err); }
+  .msg .meta { color:var(--muted); font-size:11px; margin-top:6px; }
+  #composer { display:flex; gap:8px; padding:12px 16px; border-top:1px solid var(--line); max-width:832px; width:100%; margin:0 auto; }
+  #composer textarea { flex:1; resize:vertical; min-height:44px; }
+  /* batch */
+  #batchView { flex-direction:column; overflow:auto; padding:16px; gap:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px; }
+  .row { display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; }
+  .row > div { display:flex; flex-direction:column; gap:2px; }
+  #queue { list-style:none; padding:0; margin:10px 0; }
+  #queue li { display:flex; gap:8px; align-items:flex-start; padding:6px 0; border-bottom:1px solid var(--line); }
+  #queue li .p { flex:1; white-space:pre-wrap; }
+  table { border-collapse:collapse; width:100%; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:500; font-size:12px; }
+  code { font-size:12px; }
+  .status-ended { color:green; } .status-in_progress { color:var(--accent); } .status-canceling { color:var(--muted); }
+  .result { border-top:1px solid var(--line); padding:10px 0; }
+  .result pre { white-space:pre-wrap; margin:6px 0 0; font:inherit; }
+  .muted { color:var(--muted); }
+  @media (max-width: 700px) { #convs { display:none; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>batch-chat</h1>
+  <div class="tabs"><button data-tab="chat" class="active">Chat</button><button data-tab="batch">Batch</button></div>
+  <div><label>Model <input id="model" size="22"></label></div>
+  <div><label>Max tokens <input id="maxTokens" type="number" min="1" style="width:90px"></label></div>
+  <div style="flex:1"><label>System <input id="system" style="width:100%" placeholder="optional system prompt"></label></div>
+</header>
+<main>
+  <section id="chatView" class="view active">
+    <aside id="convs">
+      <button class="btn" id="newChat" style="width:100%;margin-bottom:8px">+ New chat</button>
+      <div id="convList"></div>
+    </aside>
+    <div class="chatcol">
+      <div id="msgs"></div>
+      <form id="composer">
+        <textarea id="input" placeholder="Message… (Enter to send, Shift+Enter for newline)"></textarea>
+        <button class="btn primary" id="send">Send</button>
+      </form>
+    </div>
+  </section>
+
+  <section id="batchView" class="view">
+    <div class="card">
+      <strong>Queue prompts</strong>
+      <p class="muted" style="margin:4px 0 8px">Each prompt becomes one request in the batch, using the model, max tokens and system prompt above.</p>
+      <div class="row">
+        <textarea id="batchInput" rows="3" style="flex:1;min-width:240px" placeholder="Prompt (Ctrl/Cmd+Enter to add)"></textarea>
+        <button class="btn" id="addPrompt">Add to queue</button>
+      </div>
+      <ul id="queue"></ul>
+      <button class="btn primary" id="submitBatch" disabled>Submit batch</button>
+      <span id="batchMsg" class="muted"></span>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <strong>Batches</strong>
+        <span class="muted" id="pollInfo"></span>
+      </div>
+      <table>
+        <thead><tr><th>ID</th><th>Created</th><th>Model</th><th>Status</th><th>Counts</th><th></th></tr></thead>
+        <tbody id="batchRows"></tbody>
+      </table>
+    </div>
+    <div class="card" id="resultsCard" style="display:none">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <strong id="resultsTitle"></strong>
+        <a id="downloadLink" class="btn" style="text-decoration:none">Download JSONL</a>
+      </div>
+      <div id="results"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const el = (tag, props = {}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+
+// ---------- settings
+for (const [id, key, def] of [["model", "bc.model", "claude-opus-4-5"], ["maxTokens", "bc.maxTokens", 8192], ["system", "bc.system", ""]]) {
+  $(id).value = store.get(key, def);
+  $(id).addEventListener("change", () => store.set(key, $(id).value));
+}
+const settings = () => {
+  const s = { model: $("model").value.trim() || "claude-opus-4-5", max_tokens: parseInt($("maxTokens").value, 10) || 8192 };
+  if ($("system").value.trim()) s.system = $("system").value.trim();
+  return s;
+};
+
+// ---------- tabs
+document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
+function showTab(tab) {
+  document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
+  $("chatView").classList.toggle("active", tab === "chat");
+  $("batchView").classList.toggle("active", tab === "batch");
+  store.set("bc.tab", tab);
+  if (tab === "batch") loadBatches();
+}
+
+// ---------- chat
+let convs = store.get("bc.convs", []);  // [{id, title, messages:[{role, content}], updated}]
+let currentId = store.get("bc.current", null);
+let busy = false;
+const saveConvs = () => { store.set("bc.convs", convs); store.set("bc.current", currentId); };
+const current = () => convs.find((c) => c.id === currentId);
+
+function newChat() {
+  const c = { id: crypto.randomUUID(), title: "New chat", messages: [], updated: Date.now() };
+  convs.unshift(c); currentId = c.id; saveConvs(); render();
+}
+function render() {
+  const list = $("convList"); list.replaceChildren();
+  for (const c of convs) {
+    const x = el("span", { className: "x", textContent: "×", title: "Delete" });
+    x.onclick = (e) => { e.stopPropagation(); convs = convs.filter((k) => k.id !== c.id); if (currentId === c.id) currentId = convs[0]?.id ?? null; saveConvs(); render(); };
+    const item = el("div", { className: "item" + (c.id === currentId ? " active" : ""), title: c.title }, el("span", { textContent: c.title }), x);
+    item.onclick = () => { if (!busy) { currentId = c.id; saveConvs(); render(); } };
+    list.append(item);
+  }
+  const msgs = $("msgs"); msgs.replaceChildren();
+  for (const m of current()?.messages ?? []) msgs.append(msgEl(m));
+  msgs.scrollTop = msgs.scrollHeight;
+}
+function msgEl(m) {
+  const d = el("div", { className: "msg " + m.role }, document.createTextNode(m.content));
+  if (m.meta) d.append(el("div", { className: "meta", textContent: m.meta }));
+  return d;
+}
+
+async function send(ev) {
+  ev?.preventDefault();
+  const text = $("input").value.trim();
+  if (!text || busy) return;
+  if (!current()) newChat();
+  const conv = current();
+  conv.messages.push({ role: "user", content: text });
+  if (conv.title === "New chat") conv.title = text.slice(0, 40);
+  $("input").value = ""; saveConvs(); render();
+
+  busy = true; $("send").disabled = true;
+  const reply = { role: "assistant", content: "" };
+  const node = msgEl(reply); $("msgs").append(node);
+  let error = null, meta = null;
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...settings(), messages: conv.messages.map(({ role, content }) => ({ role, content })) }),
+    });
+    if (!res.ok) throw new Error(`${res.status}: ${(await res.text()).slice(0, 300)}`);
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n\n")) >= 0) {
+        const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+        if (!chunk.startsWith("data: ")) continue;
+        const evt = JSON.parse(chunk.slice(6));
+        if (evt.type === "text") { reply.content += evt.text; node.firstChild.textContent = reply.content; $("msgs").scrollTop = $("msgs").scrollHeight; }
+        else if (evt.type === "done") meta = `${evt.stop_reason} · ${evt.usage.input_tokens} in / ${evt.usage.output_tokens} out`;
+        else if (evt.type === "error") error = evt.message;
+      }
+    }
+  } catch (e) { error = String(e.message || e); }
+  if (reply.content) { reply.meta = meta || undefined; conv.messages.push(reply); }
+  if (error) {
+    // Drop the unanswered user turn so the conversation stays valid; keep the text in the box to retry.
+    if (!reply.content) { conv.messages.pop(); $("input").value = text; }
+  }
+  conv.updated = Date.now(); saveConvs(); render();
+  if (error) $("msgs").append(el("div", { className: "msg error", textContent: "Error: " + error }));
+  busy = false; $("send").disabled = false;
+}
+$("composer").addEventListener("submit", send);
+$("input").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) send(e); });
+$("newChat").onclick = () => { if (!busy) newChat(); };
+
+// ---------- batch
+let queue = store.get("bc.queue", []);
+let pollTimer = null;
+function renderQueue() {
+  store.set("bc.queue", queue);
+  $("queue").replaceChildren(...queue.map((p, i) => {
+    const rm = el("button", { className: "btn", textContent: "Remove" }); rm.onclick = () => { queue.splice(i, 1); renderQueue(); };
+    return el("li", {}, el("span", { className: "muted", textContent: `${i + 1}.` }), el("span", { className: "p", textContent: p }), rm);
+  }));
+  $("submitBatch").disabled = queue.length === 0;
+  $("submitBatch").textContent = queue.length ? `Submit batch (${queue.length})` : "Submit batch";
+}
+function addPrompt() {
+  const p = $("batchInput").value.trim(); if (!p) return;
+  queue.push(p); $("batchInput").value = ""; renderQueue();
+}
+$("addPrompt").onclick = addPrompt;
+$("batchInput").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) addPrompt(); });
+
+async function api(path, opts) {
+  const res = await fetch(path, opts);
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.detail || res.statusText);
+  return body;
+}
+
+$("submitBatch").onclick = async () => {
+  $("submitBatch").disabled = true; $("batchMsg").textContent = "Submitting…";
+  try {
+    const b = await api("/api/batches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...settings(), prompts: queue }) });
+    queue = []; renderQueue(); $("batchMsg").textContent = `Created ${b.id}`;
+    loadBatches();
+  } catch (e) { $("batchMsg").textContent = "Error: " + e.message; $("submitBatch").disabled = false; }
+};
+
+function countsText(c) {
+  if (!c) return "";
+  return Object.entries(c).filter(([, v]) => v).map(([k, v]) => `${k} ${v}`).join(", ");
+}
+function renderBatches(batches) {
+  $("batchRows").replaceChildren(...batches.map((b) => {
+    const actions = el("td", { style: "white-space:nowrap" });
+    const btn = (label, fn) => { const x = el("button", { className: "btn", textContent: label }); x.onclick = fn; actions.append(x, " "); };
+    if (b.processing_status === "ended") btn("Results", () => showResults(b.id));
+    else {
+      btn("Refresh", () => refresh(b.id).then(loadBatches));
+      if (b.processing_status === "in_progress") btn("Cancel", async () => { if (confirm("Cancel this batch?")) { await api(`/api/batches/${b.id}/cancel`, { method: "POST" }).catch((e) => alert(e.message)); loadBatches(); } });
+    }
+    btn("Forget", async () => { if (confirm("Remove from local list? (Does not delete it on the API.)")) { await api(`/api/batches/${b.id}`, { method: "DELETE" }); loadBatches(); } });
+    return el("tr", {},
+      el("td", {}, el("code", { textContent: b.id })),
+      el("td", { textContent: new Date(b.created_at * 1000).toLocaleString() }),
+      el("td", { textContent: b.model }),
+      el("td", { className: "status-" + b.processing_status, textContent: b.processing_status }),
+      el("td", { textContent: countsText(b.request_counts) }),
+      actions);
+  }));
+  if (!batches.length) $("batchRows").append(el("tr", {}, el("td", { colSpan: 6, className: "muted", textContent: "No batches yet." })));
+}
+const refresh = (id) => api(`/api/batches/${id}`).catch((e) => console.warn(id, e.message));
+
+async function loadBatches() {
+  const batches = await api("/api/batches").catch(() => []);
+  renderBatches(batches);
+  clearTimeout(pollTimer);
+  const pending = batches.filter((b) => b.processing_status !== "ended");
+  $("pollInfo").textContent = pending.length ? `Polling ${pending.length} batch(es) every 15s` : "";
+  if (pending.length) pollTimer = setTimeout(async () => { await Promise.all(pending.map((b) => refresh(b.id))); loadBatches(); }, 15000);
+}
+
+async function showResults(id) {
+  $("resultsCard").style.display = ""; $("resultsTitle").textContent = `Results · ${id}`;
+  $("downloadLink").href = `/api/batches/${id}/results.jsonl`;
+  $("results").replaceChildren(el("p", { className: "muted", textContent: "Loading…" }));
+  try {
+    const results = await api(`/api/batches/${id}/results`);
+    $("results").replaceChildren(...results.map((r) => el("div", { className: "result" },
+      el("div", {}, el("code", { textContent: r.custom_id }), " ", el("span", { className: r.type === "succeeded" ? "status-ended" : "muted", textContent: r.type })),
+      el("div", { className: "muted", textContent: r.prompt ?? "" }),
+      el("pre", { textContent: r.text ?? (r.error ? JSON.stringify(r.error, null, 2) : "") }))));
+  } catch (e) { $("results").replaceChildren(el("p", { className: "muted", textContent: "Error: " + e.message })); }
+  $("resultsCard").scrollIntoView({ behavior: "smooth" });
+}
+
+// ---------- init
+if (!current()) currentId = convs[0]?.id ?? null;
+render(); renderQueue();
+showTab(store.get("bc.tab", "chat"));
+</script>
+</body>
+</html>
