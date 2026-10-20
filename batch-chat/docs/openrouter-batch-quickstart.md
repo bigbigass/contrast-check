@@ -1,0 +1,788 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://openrouter.ai/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# Batch API Quickstart
+
+> Submit and retrieve asynchronous batches of inference requests
+
+The Batch API lets you submit many inference requests together and retrieve the results asynchronously. It's useful for work that doesn't need an immediate response, and it uses a 24-hour completion window so you can process requests without managing each call yourself.
+
+The Batch API supports several OpenRouter API shapes, including chat completions, Responses, Anthropic Messages, and embeddings. You submit requests as an inline JSON `requests` array. You don't upload a JSONL file; OpenRouter handles JSONL persistence internally.
+
+A batch runs on one provider. By default OpenRouter picks the cheapest eligible batch endpoint for the model, and you can pin a provider with `provider.only` (see [Provider routing](#provider-routing)). Use the [list endpoint](#list-your-batches) to see every batch in your workspace.
+
+<Note>
+  Batch results are available asynchronously. A successful submission returns `202 Accepted` with `status: "validating"`. That means OpenRouter persisted the batch and queued it for validation; it doesn't mean every request has completed.
+</Note>
+
+***
+
+## Limitations
+
+Multimodal input in batch is URL-only (except account-enabled inline PDFs, described under **Files** below), and support depends on the provider the batch routes to.
+
+| Provider | Public image URLs | Public file URLs |
+| - | - | - |
+| OpenAI | Supported | Supported for models served on the Responses wire |
+| Anthropic | Supported | Supported |
+| xAI | Supported | Not supported |
+| Mistral | Supported | Supported |
+| Google Vertex | Supported; plus `gs://` references on BYOK | Not supported |
+| Google AI Studio | Supported | Not supported |
+| Together | Supported | Not supported |
+| Parasail | Not supported | Not supported |
+| DeepInfra (`/v1/chat/completions` only) | Supported | Supported |
+| Alibaba (`/v1/chat/completions` only) | Supported | Not supported |
+| Sail Research | Supported | Not supported |
+| Fireworks | Not supported | Not supported |
+| Morph | Not supported | Not supported |
+
+A provider can also turn image URLs off for one model, for example Sail Research's DeepSeek V4.1 Flash. A request with an image URL on that endpoint is rejected with an error saying the provider endpoint does not accept image URLs.
+
+Vertex requires HTTPS for public images and a PNG, JPEG, WebP, HEIC, or HEIF filename extension. Google API, Googleusercontent, and Cloud Storage HTTPS hosts are rejected; public images must remain readable through execution. Vertex BYOK also supports `gs://` images as described below.
+
+**Files.** File parts (Responses `input_file`, Anthropic `document`, chat completions `file`) are accepted only as URL references, only on the providers marked above, and only for models that list file input. Accounts enabled for inline batch files (ask support) can also send PDFs inline as base64 data URIs (`data:application/pdf;base64,...`) on Anthropic and DeepInfra, up to 20 MiB decoded per file and per request line. Inline file bytes are rejected for every other account, provider, and file type, and provider file IDs are rejected everywhere. A rejected file URL's error names the check that refused it: the model does not list file input, the provider endpoint does not support multipart content or file URLs, or the provider's batch serializer cannot forward file URLs (OpenAI forwards them only for models served on the Responses wire).
+
+**Audio and video.** Audio input parts are rejected on every provider. Video input parts are rejected on every provider except Google AI Studio, which accepts public YouTube URLs (`video_url` parts) for models that list video input. Direct video file URLs and base64 videos are rejected. Because a video's duration is unknown at submit, the balance check reserves the model's full input limit once for each request that contains a video; usage is billed from the provider-reported tokens. On `/v1/chat/completions`, requests that ask for non-text output through `modalities`, `audio`, or `image_config` are also rejected. For embeddings, `input` must be strings or token arrays.
+
+**Web search.** Provider-native web search tools pass through when the resolved provider runs the search itself, for example OpenAI `web_search` on `/v1/responses` and Anthropic `web_search_20250305` on `/v1/messages`. OpenRouter-orchestrated search is not available in batch. Google Vertex batches reject web search tools, because Vertex batch prediction does not import the `google_search` tool. A submit for an `:online` model variant is rejected synchronously with `422`. Per request, the `web` plugin, `web_search_options` (except on OpenAI models that execute it natively), and web search tools with an `engine` other than `auto` or `native` are rejected.
+
+**Other per-request bans.** A request with no input (empty `messages` or `input` and no `prompt`), `stream: true`, `speed`, a max output token cap below 1, and Anthropic beta-gated features are rejected. Router-managed `deferred_tools` is also rejected: it requires multi-turn execution and continuation on the sync API. Unknown parameters are dropped by the provider serializer, matching the sync API.
+
+Use [`provider.only`](#provider-routing) to pin a provider that supports the content you send. Requests that fail these per-request checks are rejected after the `202` response: the batch moves to `status: "failed"` and `error` explains the rejection. Send unsupported content to the sync API instead.
+
+***
+
+## Find batch models
+
+Batch runs on `:batch` endpoint variants. Filter the [models page by the batch variant](https://openrouter.ai/models?variant=batch) to see which models and providers currently support it. A submit for a model with no `:batch` endpoint returns `400`. If the model has `:batch` endpoints but none match your `provider.only` list, the submit returns `404`.
+
+***
+
+## Pricing
+
+Batch requests are typically billed at 50% of the model's standard per-token pricing, mirroring the batch discounts offered by [OpenAI](https://developers.openai.com/api/docs/guides/batch) and [Anthropic](https://platform.claude.com/docs/en/build-with-claude/batch-processing). For a completed batch, `usage.cost` reports the amount OpenRouter charges. For BYOK-routed batches, that's only the OpenRouter BYOK fee, since the provider bills you directly for inference. BYOK-routed batches also report the estimated provider inference cost in `usage.cost_details.upstream_inference_cost`, split into `upstream_inference_prompt_cost` and `upstream_inference_completions_cost`, the same fields sync BYOK responses return.
+
+<Note>
+  Non-token pricing components aren't uniformly discounted. Web-search calls bill at standard rates, and prompt-caching rates vary by model. The pricing shown on each model's page is the source of truth.
+</Note>
+
+***
+
+## BYOK
+
+If you have a [provider key](/docs/guides/overview/auth/byok) configured, batches route through it automatically, the same as sync requests: the provider bills you directly for inference and OpenRouter charges only the BYOK fee (see Pricing above). Completed batches report `usage.is_byok: true` and the provider inference estimate in `usage.cost_details`.
+
+An Anthropic key declared for the US [data region](/docs/guides/overview/auth/byok) sends `inference_geo: "us"` on Claude 4.6 and later models, the same as sync requests.
+
+A submit that routes to a provider key containing characters that cannot be sent in an HTTP header, such as a unicode dash or an invisible character left by copy-paste, is rejected synchronously with `400` instead of `202 Accepted`. Fix the key in your [provider key settings](/docs/guides/overview/auth/byok) and resubmit. Google Vertex service-account JSON keys are exempt, since OpenRouter exchanges them for an access token instead of sending them as a header.
+
+Google Vertex uses a bucket in your GCP project for provider input and output. The primary setup is frictionless: omit `bucket` and let OpenRouter create a private, location-compatible bucket on the first batch. You can optionally provide an existing bucket instead. See [Google Vertex API keys](/docs/guides/overview/auth/byok#google-vertex-api-keys) for permissions and storage behavior.
+
+Vertex BYOK also accepts `image_url: { "url": "gs://your-bucket/image.jpg" }`. Your project's Vertex AI service agent must have read access to the image through batch execution; access granted only to the uploaded service-account key is not sufficient. Image names must end in `.png`, `.jpg`, `.jpeg`, `.webp`, `.heic`, or `.heif`. Platform-funded batches do not accept `gs://` images.
+
+Alibaba accepts either a bare DashScope key or a key config with an `endpoint_url`. For batches the `endpoint_url` must be a DashScope OpenAI-compatible `/v1` base (for example `https://dashscope.aliyuncs.com/compatible-mode/v1`), the same URL sync requests already use; a key config whose URL does not end in `/v1` is rejected at submit with a `400` before anything reaches the provider.
+
+***
+
+## Submit a batch
+
+Submit a batch with:
+
+```text title="Endpoint" lines theme={null}
+POST https://openrouter.ai/api/v1/batches
+```
+
+The request body has three required top-level fields:
+
+| Field | Description |
+| - | - |
+| `endpoint` | The API shape used by every request in the batch. Choose `/v1/chat/completions`, `/v1/responses`, `/v1/messages`, or `/v1/embeddings`. |
+| `model` | An OpenRouter model slug, such as `openai/gpt-4o`. This batch-level model is applied to every request. |
+| `requests` | A non-empty array of `{ custom_id, body }` items. `custom_id` must be unique within the batch, and `body` follows the shape of the selected `endpoint`. |
+
+Three optional top-level fields:
+
+| Field | Description |
+| - | - |
+| `provider` | `{ "only": ["<provider-slug>"] }` to pin the batch to specific providers. See [Provider routing](#provider-routing). |
+| `completion_window` | Defaults to `24h`, which is the only accepted value. |
+| `callback_url` | A public HTTPS URL that gets a webhook when the batch reaches a terminal status. See [Get notified with webhooks](#get-notified-with-webhooks). |
+
+<Warning>
+  Serialize `endpoint`, `model`, and any `provider`, `completion_window`, or `callback_url` before `requests` in the JSON body. The API stream-parses the request so it can accept very large `requests` arrays without buffering, and it returns a `400` if `requests` appears first. Every example on this page already uses this order.
+</Warning>
+
+The batch-level `model` applies to every request. A request body can omit `model` to inherit the batch-level value. If a request body sets its own `model`, it must match the batch-level `model` or the submission is rejected.
+
+On Google models, every request in a batch must ask for the same `response_format`. Either all requests omit it, all use `json_object`, or all use `json_schema` with the same schema. Google's batch service derives one output schema for the whole batch, so requests that disagree fail there. Validation fails a mismatched batch and names the first request that conflicts, so send one batch per `response_format` and per schema.
+
+<CodeGroup>
+  ```python title="Python" lines theme={null}
+  import json
+  import requests
+
+  response = requests.post(
+    url="https://openrouter.ai/api/v1/batches",
+    headers={
+      "Authorization": "Bearer <OPENROUTER_API_KEY>",
+      "Content-Type": "application/json",
+    },
+    data=json.dumps({
+      "endpoint": "/v1/chat/completions",
+      "model": "openai/gpt-4o",
+      "requests": [
+        {
+          "custom_id": "req-0001",
+          "body": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "Summarize OpenRouter in one sentence."
+              }
+            ]
+          }
+        }
+      ]
+    })
+  )
+
+  print(response.json())
+  ```
+
+  ```typescript title="TypeScript (fetch)" lines theme={null}
+  const response = await fetch('https://openrouter.ai/api/v1/batches', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer <OPENROUTER_API_KEY>',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      endpoint: '/v1/chat/completions',
+      model: 'openai/gpt-4o',
+      requests: [
+        {
+          custom_id: 'req-0001',
+          body: {
+            messages: [
+              {
+                role: 'user',
+                content: 'Summarize OpenRouter in one sentence.',
+              },
+            ],
+          },
+        },
+      ],
+    }),
+  });
+
+  console.log(await response.json());
+  ```
+
+  ```shell title="Shell" lines theme={null}
+  curl https://openrouter.ai/api/v1/batches \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+    -d '{
+    "endpoint": "/v1/chat/completions",
+    "model": "openai/gpt-4o",
+    "requests": [
+      {
+        "custom_id": "req-0001",
+        "body": {
+          "messages": [
+            {
+              "role": "user",
+              "content": "Summarize OpenRouter in one sentence."
+            }
+          ]
+        }
+      }
+    ]
+  }'
+  ```
+</CodeGroup>
+
+The response is a batch object with an ID you can use to check progress:
+
+```json title="202 Accepted" lines theme={null}
+{
+  "id": "batch_123",
+  "object": "batch",
+  "endpoint": "/v1/chat/completions",
+  "model": "openai/gpt-4o",
+  "completion_window": "24h",
+  "status": "validating",
+  "created_at": 1782097200,
+  "finalized_at": null,
+  "provider": "OpenAI",
+  "expires_at": 1782183600,
+  "request_counts": {
+    "total": 1,
+    "completed": 0,
+    "failed": 0
+  },
+  "usage": null,
+  "results": null,
+  "error": null
+}
+```
+
+The only supported completion window is `24h`.
+
+`provider` is the provider OpenRouter assigned to the batch, using the same name as the `provider` field of sync responses. `expires_at` is the Unix timestamp after which that provider no longer completes unfinished requests. It comes from the provider's documented batch window, so it can be later than `created_at` plus `completion_window`. It is `null` when the provider documents no hard expiry. If OpenRouter re-routes the batch to another provider for capacity before it starts, later reads report that provider in `provider` and recompute `expires_at` from its window, still counted from `created_at`.
+
+<Note>
+  Google Vertex batches can take up to 96 hours. Vertex queues a batch for up to 72 hours while it waits for capacity, then processes it for up to 24 hours. Most batches finish sooner, and a batch that stays `validating` or `in_progress` past 24 hours is still healthy. For a Vertex batch, `expires_at` is `created_at` plus 96 hours. Mistral batches expire after 24 hours. Google AI Studio is a separate provider: it expires batches that are still pending or running after 48 hours.
+</Note>
+
+***
+
+## Provider routing
+
+Every request in a batch runs on a single provider, chosen once at submit time. By default OpenRouter picks the cheapest eligible `:batch` endpoint for the model, after applying your account's provider allowlist, data policy, and BYOK settings. Endpoints at the same price share traffic. When the selected provider rejects a submission for capacity, it may be served by the next cheapest provider allowed by your request's routing constraints and billed at that provider's price, unless you set `provider.allow_fallbacks` to `false`. If you have a BYOK key for one of the providers, that endpoint is preferred over cheaper platform endpoints.
+
+To pin the batch to a provider, add a top-level `provider` object with an `only` array of [provider slugs](/docs/guides/routing/provider-selection), placed before `requests`:
+
+<CodeGroup>
+  ```python title="Python" lines theme={null}
+  import json
+  import requests
+
+  response = requests.post(
+    url="https://openrouter.ai/api/v1/batches",
+    headers={
+      "Authorization": "Bearer <OPENROUTER_API_KEY>",
+      "Content-Type": "application/json",
+    },
+    data=json.dumps({
+      "endpoint": "/v1/chat/completions",
+      "model": "google/gemini-2.5-flash",
+      "provider": {
+        "only": ["google-vertex"]
+      },
+      "requests": [
+        {
+          "custom_id": "req-0001",
+          "body": {
+            "messages": [
+              {"role": "user", "content": "Summarize this ticket in one sentence."}
+            ]
+          }
+        }
+      ]
+    })
+  )
+
+  print(response.json())
+  ```
+
+  ```typescript title="TypeScript" lines theme={null}
+  const response = await fetch('https://openrouter.ai/api/v1/batches', {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer <OPENROUTER_API_KEY>',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      endpoint: '/v1/chat/completions',
+      model: 'google/gemini-2.5-flash',
+      provider: {
+        only: ['google-vertex'],
+      },
+      requests: [
+        {
+          custom_id: 'req-0001',
+          body: {
+            messages: [{ role: 'user', content: 'Summarize this ticket in one sentence.' }],
+          },
+        },
+      ],
+    }),
+  });
+
+  console.log(await response.json());
+  ```
+
+  ```shell title="Shell" lines theme={null}
+  curl https://openrouter.ai/api/v1/batches \
+    -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "endpoint": "/v1/chat/completions",
+      "model": "google/gemini-2.5-flash",
+      "provider": { "only": ["google-vertex"] },
+      "requests": [
+        {
+          "custom_id": "req-0001",
+          "body": {
+            "messages": [{ "role": "user", "content": "Summarize this ticket in one sentence." }]
+          }
+        }
+      ]
+    }'
+  ```
+</CodeGroup>
+
+`provider.only` and `provider.allow_fallbacks` are the only provider preferences the Batch API accepts. `order`, `sort`, and the other sync preferences are rejected. Set `allow_fallbacks` to `false` to keep the batch on the provider chosen at submit time: if that provider rejects the submission for capacity, the batch fails instead of moving to the next cheapest provider. If none of the listed providers has an eligible `:batch` endpoint for the model, the submit returns `404` instead of falling back to another provider. Use the [batch variant filter on the models page](https://openrouter.ai/models?variant=batch) to see which providers serve a model in batch.
+
+***
+
+## List your batches
+
+List the batches in the workspace of the authenticating API key with:
+
+```shell title="Shell" lines theme={null}
+curl 'https://openrouter.ai/api/v1/batches?limit=2&status=completed&status=failed' \
+  -H "Authorization: Bearer $OPENROUTER_API_KEY"
+```
+
+Batches are scoped to the workspace, not the key: every API key in the same workspace sees the same list, including batches submitted with other keys. Batches are returned newest first. List items contain metadata only and always set `results` to `null`; retrieve an individual batch by ID when you need its results.
+
+```json title="Batch list" lines theme={null}
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "batch_9f2c1e",
+      "object": "batch",
+      "endpoint": "/v1/chat/completions",
+      "model": "openai/gpt-4o",
+      "completion_window": "24h",
+      "status": "completed",
+      "created_at": 1787836000,
+      "finalized_at": 1787837000,
+      "provider": "OpenAI",
+      "expires_at": 1787922400,
+      "request_counts": { "total": 100, "completed": 100, "failed": 0 },
+      "usage": { "prompt_tokens": 51200, "completion_tokens": 20480, "total_tokens": 71680 },
+      "results": null,
+      "error": null
+    }
+  ],
+  "first_id": "batch_9f2c1e",
+  "last_id": "batch_9f2c1e",
+  "has_more": true
+}
+```
+
+All query parameters are optional:
+
+| Parameter | Description |
+| - | - |
+| `limit` | Number of batches to return, from 1 to 100. Defaults to 20. |
+| `after` | Continue strictly after this batch ID. Pass the previous page's `last_id`. |
+| `status` | Include a public status. Repeat the parameter to include more than one of `validating`, `in_progress`, `completed`, `failed`, `expired`, or `cancelled`. The transient `finalizing` and `cancelling` statuses are not accepted as list filters. |
+| `created_after` | Include batches created strictly after a Unix timestamp in seconds or an ISO-8601 date or datetime. |
+| `created_before` | Include batches created strictly before a Unix timestamp in seconds or an ISO-8601 date or datetime. |
+
+When `has_more` is `true`, request the next page with `after`. Pagination does not use offsets or a `before` parameter.
+
+```shell title="Next page" lines theme={null}
+curl 'https://openrouter.ai/api/v1/batches?limit=2&after=batch_9f2c1e' \
+  -H "Authorization: Bearer $OPENROUTER_API_KEY"
+```
+
+For human-readable date filters, use an ISO-8601 value such as `2026-08-20` or `2026-08-20T00:00:00Z`. Unix seconds use the same unit as the integer timestamps returned in batch objects:
+
+```shell title="Creation-time range" lines theme={null}
+curl 'https://openrouter.ai/api/v1/batches?created_after=1787184000&created_before=1787837000' \
+  -H "Authorization: Bearer $OPENROUTER_API_KEY"
+```
+
+`created_after` must be earlier than `created_before` when both are present.
+
+<Note>
+  Batch objects expose `created_at` in whole seconds, while creation-time filtering retains subsecond precision. A batch created later within the same displayed second can still match `created_after=<created_at>`. Use the `after` cursor, not timestamps, when paginating without gaps or overlaps.
+</Note>
+
+***
+
+## Poll for results
+
+Use the batch ID to retrieve the current status:
+
+```text title="Endpoint" lines theme={null}
+GET https://openrouter.ai/api/v1/batches/:id
+```
+
+For example:
+
+```shell title="Shell" lines theme={null}
+curl https://openrouter.ai/api/v1/batches/batch_123 \
+  -H "Authorization: Bearer $OPENROUTER_API_KEY"
+```
+
+The status normally progresses through:
+
+```text title="Status progression" lines theme={null}
+validating → in_progress → finalizing → completed
+```
+
+Other possible statuses are `failed`, `expired`, `cancelling`, and `cancelled`. The terminal statuses are `completed`, `failed`, `expired`, and `cancelled`. Poll until the batch reaches a terminal status, or [get notified with webhooks](#get-notified-with-webhooks).
+
+`request_counts` contains the total number of requests and the number that completed or failed:
+
+```json title="request_counts" lines theme={null}
+{
+  "total": 100,
+  "completed": 98,
+  "failed": 2
+}
+```
+
+When a batch is in progress, or has failed, expired, or been cancelled, `results` is `null`. When a batch completes, `results` is returned inline as an array in the same response. There is no separate results-download endpoint.
+
+Each result maps back to an input using `custom_id`. Exactly one of `response` or `error` is populated for each result:
+
+```json title="Result item" lines theme={null}
+{
+  "id": "batch_req_123",
+  "custom_id": "req-0001",
+  "response": {
+    "status_code": 200,
+    "request_id": "request_123",
+    "body": {
+      "id": "gen-batch-1782097200-a1b2c3d4e5f6a7b8c9d0",
+      "object": "chat.completion",
+      "created": 1782097200,
+      "model": "openai/gpt-4o",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "OpenRouter provides one API for many AI models."
+          },
+          "finish_reason": "stop"
+        }
+      ]
+    }
+  },
+  "error": null
+}
+```
+
+A completed batch response looks like this:
+
+```json title="Completed batch" lines theme={null}
+{
+  "id": "batch_123",
+  "object": "batch",
+  "endpoint": "/v1/chat/completions",
+  "model": "openai/gpt-4o",
+  "completion_window": "24h",
+  "status": "completed",
+  "created_at": 1782097200,
+  "finalized_at": 1782100800,
+  "provider": "OpenAI",
+  "expires_at": 1782183600,
+  "request_counts": {
+    "total": 1,
+    "completed": 1,
+    "failed": 0
+  },
+  "usage": {
+    "prompt_tokens": 20,
+    "completion_tokens": 40,
+    "total_tokens": 60,
+    "cost": 0.000225,
+    "is_byok": false
+  },
+  "results": [
+    {
+      "id": "batch_req_123",
+      "custom_id": "req-0001",
+      "response": {
+        "status_code": 200,
+        "request_id": "request_123",
+        "body": {
+          "id": "gen-batch-1782097200-a1b2c3d4e5f6a7b8c9d0",
+          "object": "chat.completion",
+          "created": 1782097200,
+          "model": "openai/gpt-4o",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "OpenRouter provides one API for many AI models."
+              },
+              "finish_reason": "stop"
+            }
+          ]
+        }
+      },
+      "error": null
+    }
+  ],
+  "error": null
+}
+```
+
+### Get notified with webhooks
+
+Polling is one way to know when a batch is done. As an alternative, set a `callback_url`. OpenRouter then sends an HTTP `POST` to that URL when the batch reaches a terminal status. Your receiver then retrieves the batch with the `GET` request above. You can also use both methods together.
+
+#### Set the callback URL
+
+Add `callback_url` to the submit request body. Put it before `requests`, because OpenRouter reads `requests` as a stream.
+
+```json title="Batch with callback_url" lines theme={null}
+{
+  "endpoint": "/v1/chat/completions",
+  "model": "openai/gpt-4o",
+  "callback_url": "https://example.com/webhooks/openrouter-batch",
+  "requests": [
+    {
+      "custom_id": "req-0001",
+      "body": {
+        "messages": [{ "role": "user", "content": "Say hello." }]
+      }
+    }
+  ]
+}
+```
+
+Use a public HTTPS URL. If the URL points to a private or internal address, the submit request fails with `400` and OpenRouter does not create the batch.
+
+To use one URL for every batch in a workspace, set **Default batch webhook URL** in your workspace settings. A `callback_url` in the request body overrides the workspace default.
+
+#### Events
+
+OpenRouter sends one event when the batch reaches a terminal status. It sends no event for `validating`, `in_progress`, `finalizing`, or `cancelling`.
+
+| Event | Batch status |
+| - | - |
+| `batch.completed` | `completed` |
+| `batch.failed` | `failed` |
+| `batch.cancelled` | `cancelled` |
+| `batch.expired` | `expired` |
+
+The event body contains only the batch ID in `data.id`. It does not contain `results`. To read `status`, `request_counts`, and `results`, retrieve the batch with `GET https://openrouter.ai/api/v1/batches/:id`.
+
+```json title="Webhook body" lines theme={null}
+{
+  "id": "evt_51504673caddb4daeaed47e7de1dde8e",
+  "object": "event",
+  "type": "batch.completed",
+  "created_at": 1792445705,
+  "data": {
+    "id": "batch-1792445621-tOBPREqUAze2PBxi8r3m"
+  }
+}
+```
+
+The event `id` depends only on the batch ID and the event type. A repeated delivery of one event has the same `id`.
+
+The webhook request has these headers:
+
+| Header | Value |
+| - | - |
+| `X-OpenRouter-Signature` | `t=<unix seconds>,v1=<hex HMAC-SHA256>`. OpenRouter adds this header only when the workspace has a webhook signing secret. |
+| `X-OpenRouter-Idempotency-Key` | `<batch id>-<status>`, for example `batch-1792445621-tOBPREqUAze2PBxi8r3m-completed`. |
+
+#### Verify the signature
+
+To get a signing secret, open your workspace settings and select **Generate signing secret** under **Webhook signing secret**. Video generation webhooks use the same secret.
+
+1. Read the raw request body before you parse the JSON.
+2. Split `X-OpenRouter-Signature` into the `t` value and the `v1` value.
+3. Compute the HMAC-SHA256 hex digest of `<t>,<raw body>` with your signing secret.
+4. Compare the digest with `v1` in constant time. If they are not equal, reject the request.
+5. If `t` is more than 5 minutes old, reject the request.
+
+[Get Video Results with Webhooks](/docs/cookbook/video-generation/video-generation-webhooks#step-1-implement-a-webhook-receiver) has a full Express receiver that does these steps.
+
+#### Handle the event
+
+1. Verify the signature.
+2. If you already processed the `X-OpenRouter-Idempotency-Key` value, return `2xx` and stop.
+3. Store the event in a durable queue, then return `2xx`.
+4. From the queue, retrieve the batch with `GET https://openrouter.ai/api/v1/batches/:id`.
+5. If `status` does not yet match the event, wait a few seconds and retry the `GET` request.
+6. Read `results` and match each result to its input with `custom_id`.
+
+A `2xx` response tells OpenRouter that the delivery succeeded. If the `GET` request fails after that, retry it from your queue.
+
+The webhook can arrive a short time before or after `GET` shows the terminal status. If you also poll, process the batch once and ignore the second signal.
+
+<Tip>
+  To see a real delivery before you write a receiver, set `callback_url` to a temporary [Webhook.site](https://webhook.site) URL. Webhook.site shows the body and headers. It does not verify the signature.
+</Tip>
+
+***
+
+## Delete a batch
+
+Once a batch is terminal (`completed`, `failed`, `expired`, or `cancelled`) you can delete it. Deletion removes the batch from the API and purges every request and result artifact OpenRouter holds for it, without waiting for the 30-day retention window. It is not cancellation: an in-flight batch returns `409`.
+
+```text title="Endpoint" lines theme={null}
+DELETE https://openrouter.ai/api/v1/batches/:id
+```
+
+```shell title="Shell" lines theme={null}
+curl -X DELETE https://openrouter.ai/api/v1/batches/batch_123 \
+  -H "Authorization: Bearer $OPENROUTER_API_KEY"
+```
+
+The response reports the outcome per deletion target. `deletion.openrouter` is always `deleted` on a `200`. `deletion.upstream` identifies the provider and its batch deletion status: `deleted` when native batch deletion is supported (Anthropic, Fireworks, Google AI Studio, Google Vertex, Mistral), `unsupported` otherwise, or `not_applicable` when no upstream batch was created. The `upstream` object is omitted if no provider was assigned. Independently of that batch-record outcome, OpenRouter deletes the batch's uploaded input and stored output/error files on OpenAI, Mistral, Google AI Studio, DeepInfra, and Morph. This includes uploaded input left behind by a failed submission. Google Vertex output in OpenRouter-owned storage is also removed; files in your own GCP bucket remain under your control. Google AI Studio generated output is removed with its batch record; uploaded input is deleted separately.
+
+```json title="Response" lines theme={null}
+{
+  "id": "batch_123",
+  "object": "batch",
+  "deletion": {
+    "openrouter": "deleted",
+    "upstream": {
+      "provider": "Anthropic",
+      "status": "deleted"
+    }
+  }
+}
+```
+
+The response is synchronous: a `200` means every applicable cleanup operation, including provider file deletion, has completed, and a later `GET` or `DELETE` for the same id returns `404`. If cleanup fails part-way you receive a retryable `5xx`; repeating the request resumes where it left off. Billing, generation, and audit records are retained. Deleting a BYOK batch that needs upstream batch or file cleanup requires the provider key the batch was submitted with to still be enabled; otherwise an initial request returns `409` and leaves the batch untouched.
+
+***
+
+## Reporting issues
+
+Each completed result's `response.body.id` is that request's OpenRouter generation ID (for example `gen-batch-...`). To flag a bad generation, copy that ID and submit it through [Report Feedback](/docs/guides/overview/report-feedback) using the **By generation ID** flow.
+
+<Note>
+  Generation-level feedback is available for the `/v1/chat/completions`, `/v1/responses`, and `/v1/messages` skins. You can also share feedback or report issues in our [Discord](https://discord.gg/openrouter).
+</Note>
+
+***
+
+## Use different API shapes
+
+Set the top-level `endpoint` to choose the request shape used by every `body` in the batch. Supported shapes:
+
+* Chat completions: `/v1/chat/completions`
+* Responses: `/v1/responses`
+* Anthropic Messages: `/v1/messages`
+* Embeddings: `/v1/embeddings` (see [Embeddings](#embeddings))
+
+For example, an Anthropic Messages batch uses `/v1/messages` and puts the Messages-shaped request in each item's `body`:
+
+```json title="Anthropic Messages batch" lines theme={null}
+{
+  "endpoint": "/v1/messages",
+  "model": "anthropic/claude-3.5-sonnet",
+  "requests": [
+    {
+      "custom_id": "req-1",
+      "body": {
+        "max_tokens": 32,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Say hello."
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+All requests in one batch use the same top-level `endpoint`. To mix API shapes, submit separate batches.
+
+***
+
+## Embeddings
+
+Set the top-level `endpoint` to `/v1/embeddings` and put the embeddings request in each item's `body`. Each `body` takes an `input` (a string, an array of strings, a token array, or an array of token arrays). Multimodal inputs, `input_type`, and `provider` preferences are not supported on the Batch API. Use the sync API for those.
+
+An `input` can be a single string or an array of strings. When it is an array, that request embeds every string in one call:
+
+```json title="Embeddings batch" lines theme={null}
+{
+  "endpoint": "/v1/embeddings",
+  "model": "openai/text-embedding-3-small",
+  "requests": [
+    {
+      "custom_id": "emb-0001",
+      "body": {
+        "input": [
+          "The quick brown fox jumped over the lazy dog.",
+          "Pack my box with five dozen liquor jugs."
+        ]
+      }
+    },
+    {
+      "custom_id": "emb-0002",
+      "body": {
+        "input": "The quick brown fox jumped over the lazy dog."
+      }
+    }
+  ]
+}
+```
+
+Poll for results the same way as any other batch (`GET https://openrouter.ai/api/v1/batches/:id`). These items are the entries of the completed batch object's `results` array (shown in full above); each carries the standard embeddings response in its `body`, and there is one result item per `custom_id`. A request whose `input` is an array of strings returns one embedding object per string in `data` (ordered by `index`); a single-string request returns exactly one:
+
+```json title="Embeddings results" lines theme={null}
+[
+  {
+    "id": "batch_req_emb_1",
+    "custom_id": "emb-0001",
+    "response": {
+      "status_code": 200,
+      "request_id": "request_456",
+      "body": {
+        "object": "list",
+        "data": [
+          {
+            "object": "embedding",
+            "embedding": [0.0023064255, -0.009327292, 0.015797347],
+            "index": 0
+          },
+          {
+            "object": "embedding",
+            "embedding": [-0.012282, 0.0034567, -0.0089123],
+            "index": 1
+          }
+        ],
+        "model": "openai/text-embedding-3-small",
+        "usage": {
+          "prompt_tokens": 18,
+          "total_tokens": 18
+        }
+      }
+    },
+    "error": null
+  },
+  {
+    "id": "batch_req_emb_2",
+    "custom_id": "emb-0002",
+    "response": {
+      "status_code": 200,
+      "request_id": "request_789",
+      "body": {
+        "object": "list",
+        "data": [
+          {
+            "object": "embedding",
+            "embedding": [0.0023064255, -0.009327292, 0.015797347],
+            "index": 0
+          }
+        ],
+        "model": "openai/text-embedding-3-small",
+        "usage": {
+          "prompt_tokens": 8,
+          "total_tokens": 8
+        }
+      }
+    },
+    "error": null
+  }
+]
+```
+
+<Note>
+  OpenRouter stores batch inputs and results as JSONL artifacts in Google Cloud Storage and deletes them 30 days after creation. Upstream retention varies by provider. Download any results you need before the 30-day window elapses, or [delete the batch](#delete-a-batch) sooner to purge them immediately. After the results are deleted, retrieving a completed batch returns `410 Gone`.
+</Note>
