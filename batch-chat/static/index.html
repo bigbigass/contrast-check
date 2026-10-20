@@ -53,14 +53,17 @@
   .result { border-top:1px solid var(--line); padding:10px 0; }
   .result pre { white-space:pre-wrap; margin:6px 0 0; font:inherit; }
   .muted { color:var(--muted); }
+  .badge { font-size:11px; border:1px solid var(--line); border-radius:999px; padding:2px 8px; color:var(--muted); }
+  .err { color:var(--err); }
   @media (max-width: 700px) { #convs { display:none; } }
 </style>
 </head>
 <body>
 <header>
   <h1>batch-chat</h1>
+  <span class="badge" id="providerBadge" title="Provider is chosen by env: OPENROUTER_API_KEY, else ANTHROPIC_API_KEY"></span>
   <div class="tabs"><button data-tab="chat" class="active">Chat</button><button data-tab="batch">Batch</button></div>
-  <div><label>Model <input id="model" size="22"></label></div>
+  <div><label><span id="modelLabel">Model</span> <input id="model" size="24"></label></div>
   <div><label>Max tokens <input id="maxTokens" type="number" min="1" style="width:90px"></label></div>
   <div style="flex:1"><label>System <input id="system" style="width:100%" placeholder="optional system prompt"></label></div>
 </header>
@@ -82,7 +85,11 @@
   <section id="batchView" class="view">
     <div class="card">
       <strong>Queue prompts</strong>
-      <p class="muted" style="margin:4px 0 8px">Each prompt becomes one request in the batch, using the model, max tokens and system prompt above.</p>
+      <p class="muted" style="margin:4px 0 8px">Each prompt becomes one request in the batch, using the batch model below and the max tokens and system prompt above.</p>
+      <div class="row" style="margin-bottom:8px">
+        <div><label>Batch model</label><input id="batchModel" size="32"></div>
+        <span class="muted" id="batchModelHint" style="flex:1;min-width:200px"></span>
+      </div>
       <div class="row">
         <textarea id="batchInput" rows="3" style="flex:1;min-width:240px" placeholder="Prompt (Ctrl/Cmd+Enter to add)"></textarea>
         <button class="btn" id="addPrompt">Add to queue</button>
@@ -94,7 +101,7 @@
     <div class="card">
       <div class="row" style="justify-content:space-between;align-items:center">
         <strong>Batches</strong>
-        <span class="muted" id="pollInfo"></span>
+        <span><span class="muted" id="pollInfo"></span> <button class="btn" id="syncBtn" style="display:none" title="Pull the workspace's batch list from OpenRouter">Sync from OpenRouter</button></span>
       </div>
       <table>
         <thead><tr><th>ID</th><th>Created</th><th>Model</th><th>Status</th><th>Counts</th><th></th></tr></thead>
@@ -120,12 +127,26 @@ const store = {
 };
 
 // ---------- settings
-for (const [id, key, def] of [["model", "bc.model", "claude-opus-4-5"], ["maxTokens", "bc.maxTokens", 8192], ["system", "bc.system", ""]]) {
+let cfg = { provider: "anthropic", chat_model: "claude-opus-4-5", batch_model: "claude-opus-4-5", can_cancel: true, can_sync: false };
+function bindSetting(id, key, def) {
   $(id).value = store.get(key, def);
-  $(id).addEventListener("change", () => store.set(key, $(id).value));
+  $(id).onchange = () => store.set(key, $(id).value);
 }
-const settings = () => {
-  const s = { model: $("model").value.trim() || "claude-opus-4-5", max_tokens: parseInt($("maxTokens").value, 10) || 8192 };
+function applyConfig() {
+  // Model ids differ per provider, so remember them per provider.
+  bindSetting("model", `bc.model.${cfg.provider}`, cfg.chat_model);
+  bindSetting("batchModel", `bc.batchModel.${cfg.provider}`, cfg.batch_model);
+  $("providerBadge").textContent = cfg.provider === "openrouter" ? "OpenRouter" : "Anthropic";
+  $("modelLabel").textContent = "Chat model";
+  $("batchModelHint").textContent = cfg.provider === "openrouter"
+    ? "Any OpenRouter slug with a :batch endpoint variant (see openrouter.ai/models?variant=batch). OpenRouter's batch doc passes the plain slug, e.g. anthropic/claude-opus-4.5."
+    : "Any Anthropic model id.";
+  $("syncBtn").style.display = cfg.can_sync ? "" : "none";
+}
+bindSetting("maxTokens", "bc.maxTokens", 8192);
+bindSetting("system", "bc.system", "");
+const settings = (field = "model") => {
+  const s = { model: $(field).value.trim() || undefined, max_tokens: parseInt($("maxTokens").value, 10) || 8192 };
   if ($("system").value.trim()) s.system = $("system").value.trim();
   return s;
 };
@@ -249,7 +270,7 @@ async function api(path, opts) {
 $("submitBatch").onclick = async () => {
   $("submitBatch").disabled = true; $("batchMsg").textContent = "Submitting…";
   try {
-    const b = await api("/api/batches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...settings(), prompts: queue }) });
+    const b = await api("/api/batches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...settings("batchModel"), prompts: queue }) });
     queue = []; renderQueue(); $("batchMsg").textContent = `Created ${b.id}`;
     loadBatches();
   } catch (e) { $("batchMsg").textContent = "Error: " + e.message; $("submitBatch").disabled = false; }
@@ -263,18 +284,18 @@ function renderBatches(batches) {
   $("batchRows").replaceChildren(...batches.map((b) => {
     const actions = el("td", { style: "white-space:nowrap" });
     const btn = (label, fn) => { const x = el("button", { className: "btn", textContent: label }); x.onclick = fn; actions.append(x, " "); };
-    if (b.processing_status === "ended") btn("Results", () => showResults(b.id));
+    if (b.ended) btn("Results", () => showResults(b.id));
     else {
       btn("Refresh", () => refresh(b.id).then(loadBatches));
-      if (b.processing_status === "in_progress") btn("Cancel", async () => { if (confirm("Cancel this batch?")) { await api(`/api/batches/${b.id}/cancel`, { method: "POST" }).catch((e) => alert(e.message)); loadBatches(); } });
+      if (cfg.can_cancel && b.provider === cfg.provider && b.processing_status === "in_progress") btn("Cancel", async () => { if (confirm("Cancel this batch?")) { await api(`/api/batches/${b.id}/cancel`, { method: "POST" }).catch((e) => alert(e.message)); loadBatches(); } });
     }
     btn("Forget", async () => { if (confirm("Remove from local list? (Does not delete it on the API.)")) { await api(`/api/batches/${b.id}`, { method: "DELETE" }); loadBatches(); } });
     return el("tr", {},
       el("td", {}, el("code", { textContent: b.id })),
       el("td", { textContent: new Date(b.created_at * 1000).toLocaleString() }),
       el("td", { textContent: b.model }),
-      el("td", { className: "status-" + b.processing_status, textContent: b.processing_status }),
-      el("td", { textContent: countsText(b.request_counts) }),
+      el("td", { className: b.ended ? "status-ended" : "status-in_progress", textContent: b.processing_status + (b.provider !== cfg.provider ? ` (${b.provider})` : "") }),
+      el("td", {}, countsText(b.request_counts), b.error ? el("div", { className: "err", textContent: typeof b.error === "string" ? b.error : (b.error.message || JSON.stringify(b.error)) }) : ""),
       actions);
   }));
   if (!batches.length) $("batchRows").append(el("tr", {}, el("td", { colSpan: 6, className: "muted", textContent: "No batches yet." })));
@@ -285,7 +306,7 @@ async function loadBatches() {
   const batches = await api("/api/batches").catch(() => []);
   renderBatches(batches);
   clearTimeout(pollTimer);
-  const pending = batches.filter((b) => b.processing_status !== "ended");
+  const pending = batches.filter((b) => !b.ended && b.provider === cfg.provider);
   $("pollInfo").textContent = pending.length ? `Polling ${pending.length} batch(es) every 15s` : "";
   if (pending.length) pollTimer = setTimeout(async () => { await Promise.all(pending.map((b) => refresh(b.id))); loadBatches(); }, 15000);
 }
@@ -296,6 +317,7 @@ async function showResults(id) {
   $("results").replaceChildren(el("p", { className: "muted", textContent: "Loading…" }));
   try {
     const results = await api(`/api/batches/${id}/results`);
+    if (!results.length) { $("results").replaceChildren(el("p", { className: "muted", textContent: "No results (the batch failed, expired or was cancelled — see its error in the list)." })); return; }
     $("results").replaceChildren(...results.map((r) => el("div", { className: "result" },
       el("div", {}, el("code", { textContent: r.custom_id }), " ", el("span", { className: r.type === "succeeded" ? "status-ended" : "muted", textContent: r.type })),
       el("div", { className: "muted", textContent: r.prompt ?? "" }),
@@ -304,9 +326,16 @@ async function showResults(id) {
   $("resultsCard").scrollIntoView({ behavior: "smooth" });
 }
 
+$("syncBtn").onclick = async () => {
+  $("syncBtn").disabled = true;
+  try { await api("/api/batches/sync", { method: "POST" }); } catch (e) { alert(e.message); }
+  $("syncBtn").disabled = false; loadBatches();
+};
+
 // ---------- init
 if (!current()) currentId = convs[0]?.id ?? null;
-render(); renderQueue();
+render(); renderQueue(); applyConfig();
+fetch("/api/config").then((r) => r.json()).then((c) => { cfg = c; applyConfig(); if (store.get("bc.tab", "chat") === "batch") loadBatches(); }).catch(() => {});
 showTab(store.get("bc.tab", "chat"));
 </script>
 </body>
